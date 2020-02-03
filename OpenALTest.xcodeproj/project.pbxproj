@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		03615FA423E876FF00EBE24C /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03615FA323E876FF00EBE24C /* main.cpp */; };
+		03615FAD23E87B2500EBE24C /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03615FAC23E87B2500EBE24C /* OpenAL.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +26,8 @@
 /* Begin PBXFileReference section */
 		03615FA023E876FF00EBE24C /* OpenALTest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = OpenALTest; sourceTree = BUILT_PRODUCTS_DIR; };
 		03615FA323E876FF00EBE24C /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		03615FAA23E8791900EBE24C /* Event.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Event.h; sourceTree = "<group>"; };
+		03615FAC23E87B2500EBE24C /* OpenAL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenAL.framework; path = System/Library/Frameworks/OpenAL.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +35,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				03615FAD23E87B2500EBE24C /* OpenAL.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -43,6 +47,7 @@
 			children = (
 				03615FA223E876FF00EBE24C /* OpenALTest */,
 				03615FA123E876FF00EBE24C /* Products */,
+				03615FAB23E87B2500EBE24C /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -58,8 +63,17 @@
 			isa = PBXGroup;
 			children = (
 				03615FA323E876FF00EBE24C /* main.cpp */,
+				03615FAA23E8791900EBE24C /* Event.h */,
 			);
 			path = OpenALTest;
+			sourceTree = "<group>";
+		};
+		03615FAB23E87B2500EBE24C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				03615FAC23E87B2500EBE24C /* OpenAL.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
