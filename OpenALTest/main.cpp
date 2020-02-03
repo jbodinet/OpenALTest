@@ -7,6 +7,7 @@
 //
 
 #include <iostream>
+#include <chrono>
 #include <OpenAL/al.h>
 #include <OpenAL/alc.h>
 
@@ -26,6 +27,10 @@ int main(int argc, const char * argv[]) {
     uint16_t *audioData = nullptr;
     size_t audioDataSize = 0;
     ALint sourceState = 0;
+    
+    std::chrono::high_resolution_clock::time_point time0, time1;
+    std::chrono::duration<float> floatingPointSeconds;
+    std::chrono::milliseconds milliseconds;
     
     // create device
     // ------------------------------------------------------------
@@ -138,6 +143,8 @@ int main(int argc, const char * argv[]) {
     
     // start playing source
     // --------------------------------------------------------------
+    time0 = std::chrono::high_resolution_clock::now();
+    
     alSourcePlay(source);
     error = alGetError();
     if (error != AL_NO_ERROR)
@@ -162,6 +169,11 @@ int main(int argc, const char * argv[]) {
             goto CleanUp;
         }
     }
+    
+    time1 = std::chrono::high_resolution_clock::now();
+    floatingPointSeconds = time1 - time0;
+    milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(floatingPointSeconds);
+    printf("Audio Duration Time sec:%f  ms:%lld\n", floatingPointSeconds.count(), milliseconds.count());
     
     printf("OpenAL Test Completed Successfully!!!\n");
 CleanUp:
