@@ -170,6 +170,8 @@ int main(int argc, const char * argv[]) {
         }
     }
     
+    // report results
+    // --------------------------------------------------------------
     time1 = std::chrono::high_resolution_clock::now();
     floatingPointSeconds = time1 - time0;
     milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(floatingPointSeconds);
