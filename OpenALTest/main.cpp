@@ -7,6 +7,7 @@
 //
 
 #include <iostream>
+#include <string>
 #include <chrono>
 #include <OpenAL/al.h>
 #include <OpenAL/alc.h>
@@ -21,12 +22,16 @@ int main(int argc, const char * argv[]) {
     ALCcontext *context = nullptr;
     ALuint source = 0;
     ALuint buffer = 0;
+    ALuint processedBuffers[10]; // should be dynamically sized...
     uint32_t sampleRate = 48000;
     double durationSeconds = 1.0;
     bool stereo = true;
     uint16_t *audioData = nullptr;
     size_t audioDataSize = 0;
     ALint sourceState = 0;
+    std::string sourceStateString;
+    
+    ALint numBuffersProcessed = 0;
     
     std::chrono::high_resolution_clock::time_point time0, time1;
     std::chrono::duration<float> floatingPointSeconds;
@@ -131,15 +136,17 @@ int main(int argc, const char * argv[]) {
         goto CleanUp;
     }
     
-    // bind sound buffer to source
+    // Queue sound buffer onto source
     // --------------------------------------------------------------
-    alSourcei(source, AL_BUFFER, buffer);
+    alSourceQueueBuffers(source, 1, &buffer);
     error = alGetError();
     if (error != AL_NO_ERROR)
     {
-        printf("ERROR: Bind Buffer to Source!!!\n");
+        printf("ERROR: alSourceQueueBuffers!!!\n");
         goto CleanUp;
     }
+    
+    printf("AudioData Queued -- bufferID:%d  audioDataPtr:%p\n", buffer, audioData);
     
     // start playing source
     // --------------------------------------------------------------
@@ -153,6 +160,47 @@ int main(int argc, const char * argv[]) {
         goto CleanUp;
     }
     
+    // test to see when queued buffer is done playing
+    // --------------------------------------------------------------
+    numBuffersProcessed = 0;
+    alGetSourcei(source, AL_BUFFERS_PROCESSED, &numBuffersProcessed);
+    error = alGetError();
+    if (error != AL_NO_ERROR)
+    {
+        printf("ERROR: GetNumBuffersProcessed!!!\n");
+        goto CleanUp;
+    }
+    
+    while(numBuffersProcessed == 0)
+    {
+        alGetSourcei(source, AL_BUFFERS_PROCESSED, &numBuffersProcessed);
+        if (error != AL_NO_ERROR)
+        {
+            printf("ERROR: GetNumBuffersProcessed!!!\n");
+            goto CleanUp;
+        }
+    }
+    
+    // unqueue the buffer
+    // --------------------------------------------------------------
+    time1 = std::chrono::high_resolution_clock::now();
+    
+    alSourceUnqueueBuffers(source, numBuffersProcessed, processedBuffers);
+    if (error != AL_NO_ERROR)
+    {
+        printf("ERROR: SourceUnqueueBuffers!!!\n");
+        goto CleanUp;
+    }
+    
+    printf("Unqueued buffers: ");
+    for(uint32_t bufferIter = 0; bufferIter < numBuffersProcessed; bufferIter++)
+    {
+        printf("%d  ", processedBuffers[bufferIter]);
+    }
+    printf("\n");
+    
+    // check the state of the source
+    // --------------------------------------------------------------
     alGetSourcei(source, AL_SOURCE_STATE, &sourceState);
     error = alGetError();
     if (error != AL_NO_ERROR)
@@ -161,18 +209,29 @@ int main(int argc, const char * argv[]) {
         goto CleanUp;
     }
     
-    while (sourceState == AL_PLAYING) {
-        alGetSourcei(source, AL_SOURCE_STATE, &sourceState);
-        if (error != AL_NO_ERROR)
-        {
-            printf("ERROR: GetSourceState!!!\n");
-            goto CleanUp;
-        }
+    switch(sourceState)
+    {
+        case AL_INITIAL:
+            sourceStateString = "Initial";
+            break;
+        case AL_PLAYING:
+            sourceStateString = "Playing";
+            break;
+        case AL_PAUSED:
+            sourceStateString = "Paused";
+            break;
+        case AL_STOPPED:
+            sourceStateString = "Stopped";
+            break;
+        default:
+            sourceStateString = "UNKNOWN!!!";
+            break;
     }
+    
+    printf("SourceState: %s\n", sourceStateString.c_str());
     
     // report results
     // --------------------------------------------------------------
-    time1 = std::chrono::high_resolution_clock::now();
     floatingPointSeconds = time1 - time0;
     milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(floatingPointSeconds);
     printf("Audio Duration Time sec:%f  ms:%lld\n", floatingPointSeconds.count(), milliseconds.count());
