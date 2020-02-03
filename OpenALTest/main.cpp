@@ -9,6 +9,8 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <map>
+#include <iterator>
 #include <OpenAL/al.h>
 #include <OpenAL/alc.h>
 
@@ -22,6 +24,7 @@ int main(int argc, const char * argv[]) {
     ALCcontext *context = nullptr;
     ALuint source = 0;
     ALuint buffer = 0;
+    ALint numBuffersProcessed = 0;
     ALuint processedBuffers[10]; // should be dynamically sized...
     uint32_t sampleRate = 48000;
     double durationSeconds = 1.0;
@@ -31,7 +34,15 @@ int main(int argc, const char * argv[]) {
     ALint sourceState = 0;
     std::string sourceStateString;
     
-    ALint numBuffersProcessed = 0;
+    typedef ALuint AudioBufferMapKey; // Buffer ID
+    typedef uint16_t* AudioBufferMapValue; // Buffer Data
+    typedef std::map<AudioBufferMapKey, AudioBufferMapValue> AudioBufferMap;
+    typedef std::pair<AudioBufferMapKey, AudioBufferMapValue> AudioBufferMapPair;
+    typedef AudioBufferMap::iterator AudioBufferMapIterator;
+    typedef std::pair<AudioBufferMapIterator, bool> AudioBufferMapInsertionPair;
+    
+    AudioBufferMap audioBufferMap;
+    AudioBufferMapInsertionPair audioBufferMapInsertionPair;
     
     std::chrono::high_resolution_clock::time_point time0, time1;
     std::chrono::duration<float> floatingPointSeconds;
@@ -148,10 +159,17 @@ int main(int argc, const char * argv[]) {
     
     printf("AudioData Queued -- bufferID:%d  audioDataPtr:%p\n", buffer, audioData);
     
+    // insert buffer into audioBufferMap
+    // --------------------------------------------------------------
+    audioBufferMapInsertionPair = audioBufferMap.insert(AudioBufferMapPair(buffer, audioData));
+    if(!audioBufferMapInsertionPair.second)
+    {
+        printf("ERROR: audioBufferMap.insert!!!\n");
+        goto CleanUp;
+    }
+    
     // start playing source
     // --------------------------------------------------------------
-    time0 = std::chrono::high_resolution_clock::now();
-    
     alSourcePlay(source);
     error = alGetError();
     if (error != AL_NO_ERROR)
@@ -159,6 +177,8 @@ int main(int argc, const char * argv[]) {
         printf("ERROR: SourcePlay!!!\n");
         goto CleanUp;
     }
+    
+    time0 = std::chrono::high_resolution_clock::now();
     
     // test to see when queued buffer is done playing
     // --------------------------------------------------------------
@@ -192,10 +212,25 @@ int main(int argc, const char * argv[]) {
         goto CleanUp;
     }
     
-    printf("Unqueued buffers: ");
+    printf("Unqueueing buffers...\n");
     for(uint32_t bufferIter = 0; bufferIter < numBuffersProcessed; bufferIter++)
     {
-        printf("%d  ", processedBuffers[bufferIter]);
+        // see if the buffer is in the audioBufferMap
+        AudioBufferMapIterator iter = audioBufferMap.find(processedBuffers[bufferIter]);
+        if(iter != audioBufferMap.end())
+        {
+            printf("Buffer IN map: bufferID:%d  audioDataPtr:%p\n", iter->first, iter->second);
+            
+            // remove buffer from map
+            audioBufferMap.erase(iter);
+            
+            // Note: Normally we would free() the buffer here (if desired), but due to the
+            //       simplicity of the example, we free the buffer at the end of main()
+        }
+        else
+        {
+            printf("Buffer NOT map: bufferID:%d", processedBuffers[bufferIter]);
+        }
     }
     printf("\n");
     
