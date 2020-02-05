@@ -14,8 +14,12 @@
 #include <map>
 #include <vector>
 #include <iterator>
+#include <thread>
+#include <memory>
 #include <OpenAL/al.h>
 #include <OpenAL/alc.h>
+
+#include "Event.h"
 
 class Audiblizer
 {
@@ -47,7 +51,10 @@ public:
     Audiblizer();
     ~Audiblizer();
     
-    bool Initialize(BufferCompletionListener *listener = nullptr);
+    void PrepareForDestruction();
+    
+    bool Initialize();
+    void SetBuffersCompletedListener(std::shared_ptr<BufferCompletionListener> listener);
     
     typedef std::vector<AudioChunk> AudioChunkVector;
     bool QueueAudio(const AudioChunkVector &audioChunks);
@@ -63,7 +70,7 @@ private:
     ALuint      *processedBuffers;
     ALuint      processBuffersCount;
     
-    BufferCompletionListener *bufferCompletionListener;
+    std::shared_ptr<BufferCompletionListener> bufferCompletionListener;
     
     typedef ALuint AudioBufferMapKey; // Buffer ID
     typedef void* AudioBufferMapValue; // Buffer Data
@@ -78,7 +85,12 @@ private:
     
     static ALenum OpenALAudioFormat(AudioFormat audioFormat);
     
-    // todo - ProcessUnqueueableBuffers should run in a private thread that is owned by this Audiblizer!!!
+    // --- Process unqueueable buffers THREAD ---
+    std::thread *processUnqueueableBuffersThread;
+    bool         processUnqueueableBuffersThreadRunning;
+    Event        processUnqueueableBuffersThreadEvent;
+    
+    static void  ProcessUnqueueableBuffersThreadProc(Audiblizer *audiblizer);
     bool ProcessUnqueueableBuffers();
 };
 

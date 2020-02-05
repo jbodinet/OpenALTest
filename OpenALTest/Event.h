@@ -17,8 +17,8 @@ class Event
 {
 public:
     
-    Event(bool initial, bool manual) :
-    state(initial), manual(manual)
+    Event(bool initialState, bool manual) :
+        state(initialState), manual(manual)
     {
         
     }
@@ -31,10 +31,8 @@ public:
             return;
         
         state = true;
-        if (manual)
-            condition.notify_all();
-        else
-            condition.notify_one();
+        
+        condition.notify_all();
     }
     
     void Clear()

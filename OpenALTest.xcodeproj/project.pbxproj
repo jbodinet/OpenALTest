@@ -10,6 +10,7 @@
 		03615FA423E876FF00EBE24C /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03615FA323E876FF00EBE24C /* main.cpp */; };
 		03615FAD23E87B2500EBE24C /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03615FAC23E87B2500EBE24C /* OpenAL.framework */; };
 		03615FB023EB1F8F00EBE24C /* Audiblizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03615FAF23EB1F8F00EBE24C /* Audiblizer.cpp */; };
+		03615FB323EB673200EBE24C /* AudiblizerTestHarness.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03615FB223EB673200EBE24C /* AudiblizerTestHarness.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -31,6 +32,8 @@
 		03615FAC23E87B2500EBE24C /* OpenAL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenAL.framework; path = System/Library/Frameworks/OpenAL.framework; sourceTree = SDKROOT; };
 		03615FAE23EB1F8100EBE24C /* Audiblizer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Audiblizer.h; sourceTree = "<group>"; };
 		03615FAF23EB1F8F00EBE24C /* Audiblizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Audiblizer.cpp; sourceTree = "<group>"; };
+		03615FB123EB672300EBE24C /* AudiblizerTestHarness.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudiblizerTestHarness.h; sourceTree = "<group>"; };
+		03615FB223EB673200EBE24C /* AudiblizerTestHarness.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudiblizerTestHarness.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +72,8 @@
 				03615FAA23E8791900EBE24C /* Event.h */,
 				03615FAE23EB1F8100EBE24C /* Audiblizer.h */,
 				03615FAF23EB1F8F00EBE24C /* Audiblizer.cpp */,
+				03615FB123EB672300EBE24C /* AudiblizerTestHarness.h */,
+				03615FB223EB673200EBE24C /* AudiblizerTestHarness.cpp */,
 			);
 			path = OpenALTest;
 			sourceTree = "<group>";
@@ -137,6 +142,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				03615FB323EB673200EBE24C /* AudiblizerTestHarness.cpp in Sources */,
 				03615FB023EB1F8F00EBE24C /* Audiblizer.cpp in Sources */,
 				03615FA423E876FF00EBE24C /* main.cpp in Sources */,
 			);

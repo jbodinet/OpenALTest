@@ -15,6 +15,9 @@ Audiblizer::Audiblizer() :
     bufferCompletionListener(nullptr),
     processedBuffers(nullptr),
     processBuffersCount(0),
+    processUnqueueableBuffersThread(nullptr),
+    processUnqueueableBuffersThreadRunning(false),
+    processUnqueueableBuffersThreadEvent(false, true),
     initialized(false)
 {
     
@@ -22,8 +25,20 @@ Audiblizer::Audiblizer() :
 
 Audiblizer::~Audiblizer()
 {
+    if(processUnqueueableBuffersThread != nullptr)
+    {
+        processUnqueueableBuffersThreadRunning = false;
+        processUnqueueableBuffersThreadEvent.Signal();
+        
+        processUnqueueableBuffersThread->join();
+        delete processUnqueueableBuffersThread;
+        processUnqueueableBuffersThread = nullptr;
+    }
+    
     if(source != 0)
     {
+        Stop();
+        
         alDeleteSources(1, &source);
         source = 0;
     }
@@ -50,7 +65,13 @@ Audiblizer::~Audiblizer()
     }
 }
 
-bool Audiblizer::Initialize(BufferCompletionListener *listener)
+void Audiblizer::PrepareForDestruction()
+{
+    Stop();
+    bufferCompletionListener = nullptr;
+}
+
+bool Audiblizer::Initialize()
 {
     std::lock_guard<std::mutex> lock(mutex);
     
@@ -132,21 +153,40 @@ bool Audiblizer::Initialize(BufferCompletionListener *listener)
         printf("ERROR: Configure Looping!!!\n");
         goto CleanUp;
     }
-
-    // hold on to the listener
-    // --------------------------------------------------------------
-    bufferCompletionListener = listener;
     
     // init processedBuffers to be 1
     // --------------------------------------------------------------
     processBuffersCount = 1;
     processedBuffers = (ALuint*)malloc(sizeof(ALuint) * processBuffersCount);
+    if(processedBuffers == nullptr)
+    {
+        goto CleanUp;
+    }
+    
+    // start up the unqueueing thread
+    // --------------------------------------------------------------
+    processUnqueueableBuffersThreadRunning = true;
+    processUnqueueableBuffersThread = new (std::nothrow) std::thread (ProcessUnqueueableBuffersThreadProc, this);
+    if(processUnqueueableBuffersThread == nullptr)
+    {
+        goto CleanUp;
+    }
     
     retVal = true;
     initialized = true;
 CleanUp:
     if(error != AL_NO_ERROR)
     {
+        if(processUnqueueableBuffersThread != nullptr)
+        {
+            processUnqueueableBuffersThreadRunning = false;
+            processUnqueueableBuffersThreadEvent.Signal();
+            
+            processUnqueueableBuffersThread->join();
+            delete processUnqueueableBuffersThread;
+            processUnqueueableBuffersThread = nullptr;
+        }
+        
         if(source != 0)
         {
             alDeleteSources(1, &source);
@@ -165,14 +205,32 @@ CleanUp:
             alcCloseDevice(device);
             device = nullptr;
         }
+        
+        if(processedBuffers != nullptr)
+        {
+            free(processedBuffers);
+            processedBuffers = nullptr;
+            
+            processBuffersCount = 0;
+        }
     }
     
     return retVal;
 }
 
+void Audiblizer::SetBuffersCompletedListener(std::shared_ptr<BufferCompletionListener> listener)
+{
+    bufferCompletionListener = listener;
+}
+
 bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
 {
     std::lock_guard<std::mutex> lock(mutex);
+    
+    if(!initialized)
+    {
+        return false;
+    }
     
     ALCenum error = AL_NO_ERROR;
     bool retVal = true;
@@ -230,6 +288,9 @@ bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
     
     if(sourceState != AL_PLAYING)
     {
+        // start the unqueueing thread
+        processUnqueueableBuffersThreadEvent.Signal();
+        
         alSourcePlay(source);
         error = alGetError();
         if (error != AL_NO_ERROR)
@@ -248,6 +309,11 @@ bool Audiblizer::Stop()
 {
     std::lock_guard<std::mutex> lock(mutex);
     
+    if(!initialized)
+    {
+        return false;
+    }
+    
     bool retVal = true;
     
     alSourceStop(source);
@@ -255,8 +321,15 @@ bool Audiblizer::Stop()
     // unbind all buffers that are still attached to source
     alSourcei(source, AL_BUFFER, NULL);
     
+    // -----------
+    // TODO - in the event that there is no bufferCompletionListener, who destroys any audio data bound to the source?
+    // -----------
+    
     // clear out the audioBufferMap
     audioBufferMap.clear();
+    
+    // pause the unqueueing thread
+    processUnqueueableBuffersThreadEvent.Clear();
     
     return retVal;
 }
@@ -264,6 +337,11 @@ bool Audiblizer::Stop()
 bool Audiblizer::ProcessUnqueueableBuffers()
 {
     std::lock_guard<std::mutex> lock(mutex);
+    
+    if(!initialized)
+    {
+        return false;
+    }
     
     bool retVal = true;
     ALCenum error = AL_NO_ERROR;
@@ -351,6 +429,21 @@ bool Audiblizer::ProcessUnqueueableBuffers()
     
 Exit:
     return retVal;
+}
+
+void Audiblizer::ProcessUnqueueableBuffersThreadProc(Audiblizer *audiblizer)
+{
+    while(true)
+    {
+        audiblizer->processUnqueueableBuffersThreadEvent.Wait();
+        
+        if(!audiblizer->processUnqueueableBuffersThreadRunning)
+        {
+            break;
+        }
+        
+        audiblizer->ProcessUnqueueableBuffers();
+    }
 }
 
 ALenum Audiblizer::OpenALAudioFormat(AudioFormat audioFormat)
