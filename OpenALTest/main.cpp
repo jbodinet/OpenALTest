@@ -27,6 +27,7 @@ int main(int argc, const char * argv[]) {
     ALint numBuffersProcessed = 0;
     ALuint processedBuffers[10]; // should be dynamically sized...
     uint32_t sampleRate = 48000;
+    ALenum audioFormat = AL_FORMAT_STEREO16;
     double durationSeconds = 1.0;
     bool stereo = true;
     uint16_t *audioData = nullptr;
@@ -139,7 +140,7 @@ int main(int argc, const char * argv[]) {
         goto CleanUp;
     }
     
-    alBufferData(buffer, AL_FORMAT_STEREO16, audioData, (ALsizei)audioDataSize, (ALsizei)sampleRate);
+    alBufferData(buffer, audioFormat, audioData, (ALsizei)audioDataSize, (ALsizei)sampleRate);
     error = alGetError();
     if (error != AL_NO_ERROR)
     {
