@@ -7,13 +7,58 @@
 //
 
 #include <iostream>
+#include <memory>
 #include <string>
 #include <chrono>
 #include <map>
 #include <iterator>
-#include <OpenAL/al.h>
-#include <OpenAL/alc.h>
+#include "AudiblizerTestHarness.h"
+//#include <OpenAL/al.h>
+//#include <OpenAL/alc.h>
 
+int main(int argc, const char * argv[])
+{
+    std::shared_ptr<AudiblizerTestHarness> audiblizerTestHarness = std::make_shared<AudiblizerTestHarness>();
+    AudiblizerTestHarness::VideoSegments videoSegments;
+    AudiblizerTestHarness::VideoParameters videoParameters;
+    
+    // initialize test harness
+    // ---------------------------------------
+    if(!audiblizerTestHarness->Initialize())
+    {
+        printf("AudiblizerTestHarness Initialize Error!!!\n");
+        goto Exit;
+    }
+    
+    // create video segment information
+    // ---------------------------------------
+    
+    // 2 seconds of 30fps
+    videoParameters.sampleDuration = 1001;
+    videoParameters.timeScale = 30000;
+    videoParameters.numVideoFrames = 60;
+    videoSegments.push_back(videoParameters);
+    
+    // start test
+    // ---------------------------------------
+    if(!audiblizerTestHarness->StartTest(videoSegments))
+    {
+        printf("AudiblizerTestHarness StartTest Error!!!\n");
+        goto Exit;
+    }
+    
+    // wait on test completion
+    audiblizerTestHarness->WaitOnTestCompletion();
+    
+    // stop test and report output
+    // ---------------------------------------
+    audiblizerTestHarness->StopTest();
+    
+Exit:
+    return 0;
+}
+
+/*
 void ListAudioDevices(const ALCchar *devices);
 uint16_t* GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, size_t *bufferSize = nullptr);
 void FreeAudioSample(uint16_t* data);
@@ -360,3 +405,4 @@ void FreeAudioSample(uint16_t* data)
         data = nullptr;
     }
 }
+*/

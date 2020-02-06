@@ -18,6 +18,7 @@ Audiblizer::Audiblizer() :
     processUnqueueableBuffersThread(nullptr),
     processUnqueueableBuffersThreadRunning(false),
     processUnqueueableBuffersThreadEvent(false, true),
+    audioBufferMapDurationMilliseconds(0),
     initialized(false)
 {
     
@@ -160,6 +161,7 @@ bool Audiblizer::Initialize()
     processedBuffers = (ALuint*)malloc(sizeof(ALuint) * processBuffersCount);
     if(processedBuffers == nullptr)
     {
+        error = AL_OUT_OF_MEMORY;
         goto CleanUp;
     }
     
@@ -169,6 +171,8 @@ bool Audiblizer::Initialize()
     processUnqueueableBuffersThread = new (std::nothrow) std::thread (ProcessUnqueueableBuffersThreadProc, this);
     if(processUnqueueableBuffersThread == nullptr)
     {
+        error = AL_OUT_OF_MEMORY;
+        processUnqueueableBuffersThreadRunning = false;
         goto CleanUp;
     }
     
@@ -237,9 +241,26 @@ bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
     ALuint buffer = 0;
     ALint sourceState = 0;
     AudioBufferMapInsertionPair audioBufferMapInsertionPair;
+    uint64_t audioChunkDurationMilliseconds;
     
     for(uint32_t i = 0; i < audioChunks.size(); i++)
     {
+        // ensure that the chunk has valid params
+        if(audioChunks[i].format == AudioFormat_None ||
+           audioChunks[i].buffer == nullptr ||
+           audioChunks[i].bufferSize == 0 ||
+           audioChunks[i].sampleRate == 0)
+        {
+            retVal = false;
+            goto CleanUp;
+        }
+        
+        // find the duration of this audio chunk in milliseconds
+        // --------------------------------------------------------------
+        audioChunkDurationMilliseconds = (audioChunks[i].bufferSize * 1000.0) / (AudioFormatFrameByteLength(audioChunks[i].format) * audioChunks[i].sampleRate);
+        
+        // generate and initialize sound buffer
+        // --------------------------------------------------------------
         alGenBuffers((ALuint)1, &buffer);
         error = alGetError();
         if (error != AL_NO_ERROR)
@@ -268,12 +289,14 @@ bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
         
         // insert buffer into audioBufferMap
         // --------------------------------------------------------------
-        audioBufferMapInsertionPair = audioBufferMap.insert(AudioBufferMapPair(buffer, audioChunks[i].buffer));
+        audioBufferMapInsertionPair = audioBufferMap.insert(AudioBufferMapPair(buffer, AudioBufferMapValue(audioChunks[i].buffer, audioChunkDurationMilliseconds)));
         if(!audioBufferMapInsertionPair.second)
         {
             retVal = false;
             goto CleanUp;
         }
+        
+        audioBufferMapDurationMilliseconds += audioChunkDurationMilliseconds;
     }
     
     // ensure that the source is playing
@@ -305,6 +328,39 @@ CleanUp:
     return retVal;
 }
 
+uint32_t Audiblizer::NumBuffersQueued()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    
+    if(!initialized)
+    {
+        return false;
+    }
+    
+    ALCenum error = AL_NO_ERROR;
+    ALint numBuffersQueued;
+    
+    alGetSourcei(source, AL_BUFFERS_QUEUED, &numBuffersQueued);
+    if (error != AL_NO_ERROR)
+    {
+        numBuffersQueued = UINT32_MAX;
+    }
+    
+    return numBuffersQueued;
+}
+
+double Audiblizer::QueuedAudioDurationSeconds()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    
+    if(!initialized)
+    {
+        return 0;
+    }
+    
+    return audioBufferMapDurationMilliseconds / 1000.0;
+}
+
 bool Audiblizer::Stop()
 {
     std::lock_guard<std::mutex> lock(mutex);
@@ -327,6 +383,7 @@ bool Audiblizer::Stop()
     
     // clear out the audioBufferMap
     audioBufferMap.clear();
+    audioBufferMapDurationMilliseconds = 0;
     
     // pause the unqueueing thread
     processUnqueueableBuffersThreadEvent.Clear();
@@ -402,17 +459,27 @@ bool Audiblizer::ProcessUnqueueableBuffers()
             // so insert the dataPtr into the buffersCompleted vector
             if(bufferCompletionListener != nullptr)
             {
-                buffersCompleted.push_back(iter->second);
+                buffersCompleted.push_back(iter->second.audioBufferData);
             }
             // otherwise WE free() this memory
             else
             {
-                if(iter->second != nullptr)
+                if(iter->second.audioBufferData != nullptr)
                 {
-                    free(iter->second);
+                    free(iter->second.audioBufferData);
                 }
             }
             
+            // lop off the duration of the unqueued buffer from the total
+            if(audioBufferMapDurationMilliseconds > iter->second.audioBufferDurationMilliseconds)
+            {
+                audioBufferMapDurationMilliseconds -= iter->second.audioBufferDurationMilliseconds;
+            }
+            else
+            {
+                audioBufferMapDurationMilliseconds = 0;
+            }
+                
             // remove buffer from map
             audioBufferMap.erase(iter);
         }
@@ -470,4 +537,56 @@ ALenum Audiblizer::OpenALAudioFormat(AudioFormat audioFormat)
     }
     
     return openALEnum;
+}
+
+uint32_t Audiblizer::AudioFormatFrameByteLength(AudioFormat audioFormat)
+{
+    uint32_t frameByteLength = 0;
+    
+    switch(audioFormat)
+    {
+        case AudioFormat_None:
+            frameByteLength = 0;
+            break;
+        case AudioFormat_Mono8:
+            frameByteLength = 1;
+            break;
+        case AudioFormat_Mono16:
+            frameByteLength = 2;
+            break;
+        case AudioFormat_Stereo8:
+            frameByteLength = 2;
+            break;
+        case AudioFormat_Stereo16:
+            frameByteLength = 4;
+            break;
+    }
+    
+    return frameByteLength;
+}
+
+uint32_t Audiblizer::AudioFormatFrameDatumLength(AudioFormat audioFormat)
+{
+    uint32_t frameDatumLength = 0;
+    
+    switch(audioFormat)
+    {
+        case AudioFormat_None:
+            frameDatumLength = 0;
+            break;
+        case AudioFormat_Mono8:
+            frameDatumLength = 1;
+            break;
+        case AudioFormat_Mono16:
+            frameDatumLength = 1;
+            break;
+        case AudioFormat_Stereo8:
+            frameDatumLength = 2;
+            break;
+        case AudioFormat_Stereo16:
+            frameDatumLength = 2;
+            break;
+    }
+    
+    return frameDatumLength;
 }

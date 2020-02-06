@@ -51,15 +51,21 @@ public:
     Audiblizer();
     ~Audiblizer();
     
+    bool Initialize();
     void PrepareForDestruction();
     
-    bool Initialize();
     void SetBuffersCompletedListener(std::shared_ptr<BufferCompletionListener> listener);
     
     typedef std::vector<AudioChunk> AudioChunkVector;
     bool QueueAudio(const AudioChunkVector &audioChunks);
+    uint32_t NumBuffersQueued();
+    double   QueuedAudioDurationSeconds();
     
     bool Stop();
+    
+    static ALenum OpenALAudioFormat(AudioFormat audioFormat);
+    static uint32_t AudioFormatFrameByteLength(AudioFormat audioFormat);
+    static uint32_t AudioFormatFrameDatumLength(AudioFormat audioFormat);
     
 private:
     std::mutex mutex;
@@ -72,18 +78,26 @@ private:
     
     std::shared_ptr<BufferCompletionListener> bufferCompletionListener;
     
+    class AudioBufferMapValue
+    {
+    public:
+        AudioBufferMapValue() { audioBufferData = nullptr; audioBufferDurationMilliseconds = 0; }
+        AudioBufferMapValue(void *data, uint64_t durationMS) { audioBufferData = data; audioBufferDurationMilliseconds = durationMS; }
+        
+        void *audioBufferData;
+        uint64_t audioBufferDurationMilliseconds; // duration of this audio buffer
+    };
+    
     typedef ALuint AudioBufferMapKey; // Buffer ID
-    typedef void* AudioBufferMapValue; // Buffer Data
     typedef std::map<AudioBufferMapKey, AudioBufferMapValue> AudioBufferMap;
     typedef std::pair<AudioBufferMapKey, AudioBufferMapValue> AudioBufferMapPair;
     typedef AudioBufferMap::iterator AudioBufferMapIterator;
     typedef std::pair<AudioBufferMapIterator, bool> AudioBufferMapInsertionPair;
     
     AudioBufferMap audioBufferMap;
+    uint64_t audioBufferMapDurationMilliseconds; // duration of all the audio contained in the audioBufferMap, as measured in milliseconds
     
     bool initialized;
-    
-    static ALenum OpenALAudioFormat(AudioFormat audioFormat);
     
     // --- Process unqueueable buffers THREAD ---
     std::thread *processUnqueueableBuffersThread;
