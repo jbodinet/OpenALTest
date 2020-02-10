@@ -28,6 +28,8 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioIsStereo(true),
     audioDurationSeconds(5.0),
     maxQueuedAudioDurationSeconds(4.0),
+    dataOutputThread(nullptr),
+    dataOutputThreadRunning(false),
     initialized(false)
 {
     
@@ -117,6 +119,14 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
         return false;
     }
     
+    dataOutputThreadRunning = true;
+    dataOutputThread = new (std::nothrow) std::thread(DataOutputThreadProc, this);
+    if(dataOutputThread == nullptr)
+    {
+        dataOutputThreadRunning = false;
+        return false;
+    }
+        
     return true;
 }
 
@@ -129,16 +139,23 @@ bool AudiblizerTestHarness::StopTest()
         return false;
     }
     
-    if(audioQueueingThread == nullptr)
+    // stop the threads
+    
+    if(audioQueueingThread != nullptr)
     {
-        return false;
+        audioQueueingThreadRunning = false;
+        audioQueueingThread->join();
+        delete audioQueueingThread;
+        audioQueueingThread = nullptr;
     }
     
-    // stop the thread
-    audioQueueingThreadRunning = false;
-    audioQueueingThread->join();
-    delete audioQueueingThread;
-    audioQueueingThread = nullptr;
+    if(dataOutputThread != nullptr)
+    {
+        dataOutputThreadRunning = false;
+        dataOutputThread->join();
+        delete dataOutputThread;
+        dataOutputThread = nullptr;
+    }
     
     // report average delta and max delta
     std::chrono::milliseconds averageDeltaMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(cumulativeDelta / (double)numBuffersCompleted);
@@ -154,6 +171,7 @@ bool AudiblizerTestHarness::StopTest()
 void AudiblizerTestHarness::WaitOnTestCompletion()
 {
     audioQueueingThreadTerminated.Wait();
+    
 }
 
 void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffersCompleted)
@@ -177,8 +195,14 @@ void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffe
     std::chrono::duration<float> deltaFloatingPointSeconds = now - lastCallToBuffersCompleted;
     std::chrono::milliseconds deltaMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(deltaFloatingPointSeconds);
     
-    // *** might have to queue this text and then output it via a thread so as to not clog this thread with text output ***
-    printf("AudioBuffersCompleted: %lu  Time sec:%f  ms:%lld\n", buffersCompleted.size(), deltaFloatingPointSeconds.count(), deltaMilliseconds.count());
+    OutputData outputData;
+    outputData.numBuffers = buffersCompleted.size();
+    outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
+    outputData.deltaMilliseconds = deltaMilliseconds;
+    
+    outputDataQueueMutex.lock();
+    outputDataQueue.push(outputData);
+    outputDataQueueMutex.unlock();
     
     lastCallToBuffersCompleted = now;
     cumulativeDelta += deltaFloatingPointSeconds;
@@ -327,6 +351,36 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
     
     // tell topside that thread completed
     audiblizerTestHarness->audioQueueingThreadTerminated.Signal();
+}
+
+void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audiblizerTestHarness)
+{
+   bool queueIsEmpty = true;
+    
+    while(audiblizerTestHarness->dataOutputThreadRunning || !queueIsEmpty)
+    {
+        OutputData outputData;
+        queueIsEmpty = true;
+        
+        audiblizerTestHarness->outputDataQueueMutex.lock();
+        if(!audiblizerTestHarness->outputDataQueue.empty())
+        {
+            outputData = audiblizerTestHarness->outputDataQueue.front();
+            audiblizerTestHarness->outputDataQueue.pop();
+            queueIsEmpty = false;
+        }
+        audiblizerTestHarness->outputDataQueueMutex.unlock();
+        
+        if(!queueIsEmpty)
+        {
+            printf("AudioBuffersCompleted: %lu  Time sec:%f  ms:%lld\n", outputData.numBuffers, outputData.deltaFloatingPointSeconds.count(), outputData.deltaMilliseconds.count());
+        }
+        else
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+    }
 }
 
 void* AudiblizerTestHarness::GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, size_t *bufferSizeOut)

@@ -13,6 +13,7 @@
 #include "Event.h"
 
 #include <vector>
+#include <queue>
 #include <thread>
 #include <memory>
 #include <chrono>
@@ -76,6 +77,26 @@ private:
     Event        audioQueueingThreadTerminated;
     
     static void  AudioQueueingThreadProc(AudiblizerTestHarness *audiblizerTestHarness);
+    
+    // --- Data Output Thread ---
+    class OutputData
+    {
+    public:
+        size_t numBuffers;
+        std::chrono::duration<float> deltaFloatingPointSeconds;
+        std::chrono::milliseconds deltaMilliseconds;
+        
+    };
+    
+    typedef std::queue<OutputData> OutputDataQueue;
+    
+    OutputDataQueue outputDataQueue;
+    std::mutex outputDataQueueMutex;
+    
+    std::thread *dataOutputThread;
+    bool         dataOutputThreadRunning;
+    
+    static void DataOutputThreadProc(AudiblizerTestHarness *audiblizerTestHarness);
     
     // --- Static Utility Functions ---
     static void* GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, size_t *bufferSizeOut);
