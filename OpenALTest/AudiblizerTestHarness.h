@@ -10,6 +10,7 @@
 #define AudiblizerTestHarness_h
 
 #include "Audiblizer.h"
+#include "HighPrecisionTimer.h"
 #include "Event.h"
 
 #include <vector>
@@ -49,6 +50,7 @@ private:
     std::mutex mutex;
     
     std::shared_ptr<Audiblizer> audiblizer;
+    std::shared_ptr<HighPrecisionTimer> highPrecisionTimer;
     
     VideoSegments videoSegments;
     uint8_t  *audioData;

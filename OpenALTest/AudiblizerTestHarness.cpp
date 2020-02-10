@@ -18,6 +18,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioDataTotalNumFrames(0),
     firstCallToBuffersCompleted(false),
     audiblizer(nullptr),
+    highPrecisionTimer(nullptr),
     maxDelta(std::chrono::duration<float>::zero()),
     cumulativeDelta(std::chrono::duration<float>::zero()),
     numBuffersCompleted(0),
@@ -52,6 +53,8 @@ bool AudiblizerTestHarness::Initialize()
     
     bool retVal = true;
     
+    // Audiblizer
+    // --------------------------------------------
     audiblizer = std::make_shared<Audiblizer>();
     if(!audiblizer->Initialize())
     {
@@ -63,6 +66,14 @@ bool AudiblizerTestHarness::Initialize()
     
     audiblizer->SetBuffersCompletedListener(getptr());
     
+    // HighPrecisionTimer
+    // --------------------------------------------
+    highPrecisionTimer = std::make_shared<HighPrecisionTimer>();
+    
+    highPrecisionTimer->AddDelegate(audiblizer);
+    
+    // Sample AudioData
+    // --------------------------------------------
     FreeAudioSample(audioData);
     audioData = (uint8_t*)GenerateAudioSample(audioSampleRate, audioDurationSeconds, audioIsStereo, &audioDataSize);
     audioDataPtr = audioData;
@@ -104,6 +115,9 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
         return false;
     }
     
+    // start up the high precision timer
+    highPrecisionTimer->Start();
+    
     videoSegments = videoSegmentsArg;
     firstCallToBuffersCompleted = false;
     maxDelta = std::chrono::duration<float>::zero();
@@ -139,8 +153,13 @@ bool AudiblizerTestHarness::StopTest()
         return false;
     }
     
-    // stop the threads
+    // stop high precision timer
+    // -------------------------------------
+    highPrecisionTimer->Stop();
+    highPrecisionTimer->RemoveAllDelegates();
     
+    // stop the threads
+    // -------------------------------------
     if(audioQueueingThread != nullptr)
     {
         audioQueueingThreadRunning = false;

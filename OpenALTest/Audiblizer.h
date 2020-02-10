@@ -19,9 +19,10 @@
 #include <OpenAL/al.h>
 #include <OpenAL/alc.h>
 
+#include "HighPrecisionTimer.h"
 #include "Event.h"
 
-class Audiblizer
+class Audiblizer : public HighPrecisionTimer::Delegate
 {
 public:
     enum AudioFormat { AudioFormat_None = 0, AudioFormat_Mono8, AudioFormat_Mono16, AudioFormat_Stereo8, AudioFormat_Stereo16 };
@@ -63,6 +64,14 @@ public:
     
     bool Stop();
     
+    // HighPrecisionTimer::Delegate Interface
+    // ------------------------------------------------------------------
+    virtual void TimerPing();
+    virtual double TimerPeriod() { return 0.0001; }
+    virtual bool FireOnce() { return false; }
+    
+    // Static Functions
+    // ------------------------------------------------------------------
     static ALenum OpenALAudioFormat(AudioFormat audioFormat);
     static uint32_t AudioFormatFrameByteLength(AudioFormat audioFormat);
     static uint32_t AudioFormatFrameDatumLength(AudioFormat audioFormat);
@@ -99,12 +108,7 @@ private:
     
     bool initialized;
     
-    // --- Process unqueueable buffers THREAD ---
-    std::thread *processUnqueueableBuffersThread;
-    bool         processUnqueueableBuffersThreadRunning;
-    Event        processUnqueueableBuffersThreadEvent;
-    
-    static void  ProcessUnqueueableBuffersThreadProc(Audiblizer *audiblizer);
+    // --- Process unqueueable buffers
     bool ProcessUnqueueableBuffers();
 };
 

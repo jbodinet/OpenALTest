@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0352D97023F1EDFD00D70B9F /* HighPrecisionTimer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0352D96E23F1EDFD00D70B9F /* HighPrecisionTimer.cpp */; };
 		03615FA423E876FF00EBE24C /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03615FA323E876FF00EBE24C /* main.cpp */; };
 		03615FAD23E87B2500EBE24C /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03615FAC23E87B2500EBE24C /* OpenAL.framework */; };
 		03615FB023EB1F8F00EBE24C /* Audiblizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03615FAF23EB1F8F00EBE24C /* Audiblizer.cpp */; };
@@ -26,6 +27,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0352D96E23F1EDFD00D70B9F /* HighPrecisionTimer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = HighPrecisionTimer.cpp; sourceTree = "<group>"; };
+		0352D96F23F1EDFD00D70B9F /* HighPrecisionTimer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HighPrecisionTimer.h; sourceTree = "<group>"; };
 		03615FA023E876FF00EBE24C /* OpenALTest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = OpenALTest; sourceTree = BUILT_PRODUCTS_DIR; };
 		03615FA323E876FF00EBE24C /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		03615FAA23E8791900EBE24C /* Event.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Event.h; sourceTree = "<group>"; };
@@ -68,12 +71,14 @@
 		03615FA223E876FF00EBE24C /* OpenALTest */ = {
 			isa = PBXGroup;
 			children = (
-				03615FA323E876FF00EBE24C /* main.cpp */,
-				03615FAA23E8791900EBE24C /* Event.h */,
-				03615FAE23EB1F8100EBE24C /* Audiblizer.h */,
 				03615FAF23EB1F8F00EBE24C /* Audiblizer.cpp */,
-				03615FB123EB672300EBE24C /* AudiblizerTestHarness.h */,
+				03615FAE23EB1F8100EBE24C /* Audiblizer.h */,
 				03615FB223EB673200EBE24C /* AudiblizerTestHarness.cpp */,
+				03615FB123EB672300EBE24C /* AudiblizerTestHarness.h */,
+				03615FAA23E8791900EBE24C /* Event.h */,
+				0352D96E23F1EDFD00D70B9F /* HighPrecisionTimer.cpp */,
+				0352D96F23F1EDFD00D70B9F /* HighPrecisionTimer.h */,
+				03615FA323E876FF00EBE24C /* main.cpp */,
 			);
 			path = OpenALTest;
 			sourceTree = "<group>";
@@ -142,6 +147,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0352D97023F1EDFD00D70B9F /* HighPrecisionTimer.cpp in Sources */,
 				03615FB323EB673200EBE24C /* AudiblizerTestHarness.cpp in Sources */,
 				03615FB023EB1F8F00EBE24C /* Audiblizer.cpp in Sources */,
 				03615FA423E876FF00EBE24C /* main.cpp in Sources */,

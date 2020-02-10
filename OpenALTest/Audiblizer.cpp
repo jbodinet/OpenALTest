@@ -15,9 +15,6 @@ Audiblizer::Audiblizer() :
     bufferCompletionListener(nullptr),
     processedBuffers(nullptr),
     processBuffersCount(0),
-    processUnqueueableBuffersThread(nullptr),
-    processUnqueueableBuffersThreadRunning(false),
-    processUnqueueableBuffersThreadEvent(false, true),
     audioBufferMapDurationMilliseconds(0),
     initialized(false)
 {
@@ -26,16 +23,6 @@ Audiblizer::Audiblizer() :
 
 Audiblizer::~Audiblizer()
 {
-    if(processUnqueueableBuffersThread != nullptr)
-    {
-        processUnqueueableBuffersThreadRunning = false;
-        processUnqueueableBuffersThreadEvent.Signal();
-        
-        processUnqueueableBuffersThread->join();
-        delete processUnqueueableBuffersThread;
-        processUnqueueableBuffersThread = nullptr;
-    }
-    
     if(source != 0)
     {
         Stop();
@@ -165,32 +152,11 @@ bool Audiblizer::Initialize()
         goto CleanUp;
     }
     
-    // start up the unqueueing thread
-    // --------------------------------------------------------------
-    processUnqueueableBuffersThreadRunning = true;
-    processUnqueueableBuffersThread = new (std::nothrow) std::thread (ProcessUnqueueableBuffersThreadProc, this);
-    if(processUnqueueableBuffersThread == nullptr)
-    {
-        error = AL_OUT_OF_MEMORY;
-        processUnqueueableBuffersThreadRunning = false;
-        goto CleanUp;
-    }
-    
     retVal = true;
     initialized = true;
 CleanUp:
     if(error != AL_NO_ERROR)
     {
-        if(processUnqueueableBuffersThread != nullptr)
-        {
-            processUnqueueableBuffersThreadRunning = false;
-            processUnqueueableBuffersThreadEvent.Signal();
-            
-            processUnqueueableBuffersThread->join();
-            delete processUnqueueableBuffersThread;
-            processUnqueueableBuffersThread = nullptr;
-        }
-        
         if(source != 0)
         {
             alDeleteSources(1, &source);
@@ -311,9 +277,6 @@ bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
     
     if(sourceState != AL_PLAYING)
     {
-        // start the unqueueing thread
-        processUnqueueableBuffersThreadEvent.Signal();
-        
         alSourcePlay(source);
         error = alGetError();
         if (error != AL_NO_ERROR)
@@ -385,10 +348,12 @@ bool Audiblizer::Stop()
     audioBufferMap.clear();
     audioBufferMapDurationMilliseconds = 0;
     
-    // pause the unqueueing thread
-    processUnqueueableBuffersThreadEvent.Clear();
-    
     return retVal;
+}
+
+void Audiblizer::TimerPing()
+{
+    ProcessUnqueueableBuffers();
 }
 
 bool Audiblizer::ProcessUnqueueableBuffers()
@@ -496,21 +461,6 @@ bool Audiblizer::ProcessUnqueueableBuffers()
     
 Exit:
     return retVal;
-}
-
-void Audiblizer::ProcessUnqueueableBuffersThreadProc(Audiblizer *audiblizer)
-{
-    while(true)
-    {
-        audiblizer->processUnqueueableBuffersThreadEvent.Wait();
-        
-        if(!audiblizer->processUnqueueableBuffersThreadRunning)
-        {
-            break;
-        }
-        
-        audiblizer->ProcessUnqueueableBuffers();
-    }
 }
 
 ALenum Audiblizer::OpenALAudioFormat(AudioFormat audioFormat)
