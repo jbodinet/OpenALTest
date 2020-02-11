@@ -20,7 +20,7 @@
 #include <chrono>
 #include <mutex>
 
-class AudiblizerTestHarness : public Audiblizer::BufferCompletionListener, public std::enable_shared_from_this<AudiblizerTestHarness>
+class AudiblizerTestHarness : public Audiblizer::BufferCompletionListener, public HighPrecisionTimer::Delegate, public std::enable_shared_from_this<AudiblizerTestHarness>
 {
 public:
     AudiblizerTestHarness();
@@ -46,6 +46,16 @@ public:
     
     std::shared_ptr<AudiblizerTestHarness> getptr() { return shared_from_this(); }
     
+    // HighPrecisionTimer::Delegate Interface
+    // ------------------------------------------------------------------
+    virtual void TimerPing();
+    virtual double TimerPeriod() { return videoTimerPeriod; }
+    virtual bool FireOnce() { return false; }
+    
+    // Video FrameHead
+    // ------------------------------------------------------------------
+    void PumpVideoFrame(); // stub! just outputs info
+    
 private:
     std::mutex mutex;
     
@@ -64,12 +74,20 @@ private:
     const double maxQueuedAudioDurationSeconds;
     static const Audiblizer::AudioFormat audioFormat;
     
-    std::chrono::high_resolution_clock::time_point lastCallToBuffersCompleted;
-    bool firstCallToBuffersCompleted;
+    double videoTimerPeriod;
+    
+    std::mutex videoPumpMutex;
+    int64_t audioChunkIter;
+    int64_t videoFrameIter;
+    int64_t videoTimerIter;
+    
+    std::chrono::high_resolution_clock::time_point lastCallToPumpVideoFrame;
+    std::chrono::high_resolution_clock::time_point playbackStart;
+    bool firstCallToPumpVideoFrame;
     
     std::chrono::duration<float> maxDelta;
     std::chrono::duration<float> cumulativeDelta;
-    uint64_t                     numBuffersCompleted;
+    uint64_t                     numPumpsCompleted;
     
     bool initialized;
     
@@ -84,10 +102,10 @@ private:
     class OutputData
     {
     public:
-        size_t numBuffers;
+        int64_t audioChunkIter;
+        int64_t videoFrameIter;
         std::chrono::duration<float> deltaFloatingPointSeconds;
-        std::chrono::milliseconds deltaMilliseconds;
-        
+        std::chrono::duration<float> totalFloatingPointSeconds;
     };
     
     typedef std::queue<OutputData> OutputDataQueue;

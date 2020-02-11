@@ -16,12 +16,16 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioDataSize(0),
     audioDataTotalNumDatums(0),
     audioDataTotalNumFrames(0),
-    firstCallToBuffersCompleted(false),
+    videoTimerPeriod(1001.0 / 30000.0),
+    firstCallToPumpVideoFrame(false),
     audiblizer(nullptr),
     highPrecisionTimer(nullptr),
     maxDelta(std::chrono::duration<float>::zero()),
     cumulativeDelta(std::chrono::duration<float>::zero()),
-    numBuffersCompleted(0),
+    audioChunkIter(0),
+    videoFrameIter(0),
+    videoTimerIter(0),
+    numPumpsCompleted(0),
     audioQueueingThread(nullptr),
     audioQueueingThreadRunning(false),
     audioQueueingThreadTerminated(false, false),
@@ -33,6 +37,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     dataOutputThreadRunning(false),
     initialized(false)
 {
+    
     
 }
 
@@ -70,6 +75,8 @@ bool AudiblizerTestHarness::Initialize()
     // --------------------------------------------
     highPrecisionTimer = std::make_shared<HighPrecisionTimer>();
     
+    // add 'this' and audiblizer as delegates to timer
+    highPrecisionTimer->AddDelegate(getptr());
     highPrecisionTimer->AddDelegate(audiblizer);
     
     // Sample AudioData
@@ -115,15 +122,20 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
         return false;
     }
     
-    // start up the high precision timer
-    highPrecisionTimer->Start();
-    
     videoSegments = videoSegmentsArg;
-    firstCallToBuffersCompleted = false;
+    firstCallToPumpVideoFrame = false;
     maxDelta = std::chrono::duration<float>::zero();
     cumulativeDelta = std::chrono::duration<float>::zero();
-    numBuffersCompleted = 0;
+    numPumpsCompleted = 0;
+    audioChunkIter = 0;
+    videoFrameIter = 0;
+    videoTimerIter = 0;
+    
     audioDataPtr = audioData;
+    videoTimerPeriod = !videoSegments.empty() ? (videoSegments[0].sampleDuration / (double) videoSegments[0].timeScale) : (1001.0 / 30000.0);
+    
+    // start up the high precision timer
+    highPrecisionTimer->Start();
     
     audioQueueingThreadRunning = true;
     audioQueueingThread = new (std::nothrow) std::thread(AudioQueueingThreadProc, this);
@@ -177,12 +189,7 @@ bool AudiblizerTestHarness::StopTest()
     }
     
     // report average delta and max delta
-    std::chrono::milliseconds averageDeltaMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(cumulativeDelta / (double)numBuffersCompleted);
-    std::chrono::milliseconds maxDeltaMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(maxDelta);
-    
-    printf("TestStopped! Average Delta sec: %f  ms: %lld   Max Delta sec: %f  ms: %lld\n",
-           cumulativeDelta.count() / (double)numBuffersCompleted, averageDeltaMilliseconds.count(),
-           maxDelta.count(), maxDeltaMilliseconds.count());
+    printf("TestStopped! Average Delta sec: %f  Max Delta sec: %f\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count());
    
     return true;
 }
@@ -203,36 +210,23 @@ void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffe
     }
     
     // if this is the first call, don't track anything
-    if(!firstCallToBuffersCompleted)
+    if(!firstCallToPumpVideoFrame)
     {
-        firstCallToBuffersCompleted = true;
-        lastCallToBuffersCompleted = std::chrono::high_resolution_clock::now();
+        firstCallToPumpVideoFrame = true;
+        lastCallToPumpVideoFrame = std::chrono::high_resolution_clock::now();
         return;
     }
     
-    std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> deltaFloatingPointSeconds = now - lastCallToBuffersCompleted;
-    std::chrono::milliseconds deltaMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(deltaFloatingPointSeconds);
-    
-    OutputData outputData;
-    outputData.numBuffers = buffersCompleted.size();
-    outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
-    outputData.deltaMilliseconds = deltaMilliseconds;
-    
-    outputDataQueueMutex.lock();
-    outputDataQueue.push(outputData);
-    outputDataQueueMutex.unlock();
-    
-    lastCallToBuffersCompleted = now;
-    cumulativeDelta += deltaFloatingPointSeconds;
-    numBuffersCompleted += buffersCompleted.size();
-    
-    if(deltaFloatingPointSeconds > maxDelta)
-    {
-        maxDelta = deltaFloatingPointSeconds;
-    }
+    audioChunkIter++;
+    PumpVideoFrame();
     
     return;
+}
+
+void AudiblizerTestHarness::TimerPing()
+{
+    videoTimerIter++;
+    PumpVideoFrame();
 }
 
 void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audiblizerTestHarness)
@@ -372,6 +366,84 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
     audiblizerTestHarness->audioQueueingThreadTerminated.Signal();
 }
 
+void AudiblizerTestHarness::PumpVideoFrame()
+{
+    std::lock_guard<std::mutex> lock(videoPumpMutex);
+    
+    // if the videoTimerIter is way ahead of
+    // the audioChunkIter, then consume a tick
+    // and skip this pump
+    if(videoTimerIter > audioChunkIter + 2)
+    {
+        videoTimerIter--;
+        return;
+    }
+    // else if the audioChunkIter is way ahead
+    // of the videoTimerIter, we need to pump the
+    // video frame twice and then complete the rest
+    // of this function
+    else if(audioChunkIter > videoTimerIter + 2)
+    {
+        videoTimerIter++;
+        
+        // *********************************************************
+        // *********************************************************
+        // FOR NOW WE JUST PERFORM AN EXTRA PUMP OF videoFrameIter
+        // HOWEVER!!! In a real player we will also have to visualize
+        // an extra frame, or somehow skip the playhead ahead a frame,
+        // thus skipping a frame in the playback scheme
+        // *********************************************************
+        // *********************************************************
+        videoFrameIter++;
+    }
+    
+    // tick the videoFrameIter
+    videoFrameIter++;
+    
+    // *********************************************************
+    // *********************************************************
+    // We would do something here to pump the video renderer
+    // to render either the NEXT frame, or SKIP a frame and then
+    // render the frame after that!!!
+    // *********************************************************
+    // *********************************************************
+    
+    // Instead, here we just output the data
+    // ---------------------------------------------------------
+    
+    // however, if this is the first call, don't output anything
+    if(!firstCallToPumpVideoFrame)
+    {
+        firstCallToPumpVideoFrame = true;
+        lastCallToPumpVideoFrame = std::chrono::high_resolution_clock::now();
+        playbackStart = lastCallToPumpVideoFrame;
+        return;
+    }
+    
+    std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
+    std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
+    
+    OutputData outputData;
+    outputData.audioChunkIter = audioChunkIter;
+    outputData.videoFrameIter = videoFrameIter;
+    outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
+    outputData.totalFloatingPointSeconds = totalFloatingPointSeconds;
+    
+    outputDataQueueMutex.lock();
+    outputDataQueue.push(outputData);
+    outputDataQueueMutex.unlock();
+    
+    lastCallToPumpVideoFrame = now;
+    cumulativeDelta += deltaFloatingPointSeconds;
+    numPumpsCompleted++;
+    
+    if(deltaFloatingPointSeconds > maxDelta)
+    {
+        maxDelta = deltaFloatingPointSeconds;
+    }
+}
+
 void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audiblizerTestHarness)
 {
    bool queueIsEmpty = true;
@@ -392,7 +464,15 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
         
         if(!queueIsEmpty)
         {
-            printf("AudioBuffersCompleted: %lu  Time sec:%f  ms:%lld\n", outputData.numBuffers, outputData.deltaFloatingPointSeconds.count(), outputData.deltaMilliseconds.count());
+            if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > 2)
+            {
+                printf("*** DRIFT ***");
+            }
+            
+            printf("A:%06lld   V:%06lld   delta sec:%f   total sec:%f\n",
+                   outputData.audioChunkIter, outputData.videoFrameIter,
+                   outputData.deltaFloatingPointSeconds.count(),
+                   outputData.totalFloatingPointSeconds.count());
         }
         else
         {
