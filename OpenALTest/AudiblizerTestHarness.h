@@ -54,7 +54,8 @@ public:
     
     // Video FrameHead
     // ------------------------------------------------------------------
-    void PumpVideoFrame(); // stub! just outputs info
+    enum PumpVideoFrameSender { PumpVideoFrameSender_VideoTimer = 0, PumpVideoFrameSender_AudioUnqueuer };
+    void PumpVideoFrame(PumpVideoFrameSender sender, int32_t numPumps = 1); // stub! just outputs info
     
 private:
     std::mutex mutex;
@@ -77,9 +78,10 @@ private:
     double videoTimerPeriod;
     
     std::mutex videoPumpMutex;
-    int64_t audioChunkIter;
-    int64_t videoFrameIter;
-    int64_t videoTimerIter;
+    uint64_t audioChunkIter;
+    uint64_t videoFrameIter;
+    uint64_t videoTimerIter;
+    int64_t  avEqualizer; // video timer ticks ADD 1, audio buffers reclaimed SUBTRACT 1
     
     std::chrono::high_resolution_clock::time_point lastCallToPumpVideoFrame;
     std::chrono::high_resolution_clock::time_point playbackStart;

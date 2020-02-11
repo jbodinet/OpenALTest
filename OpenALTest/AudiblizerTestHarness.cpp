@@ -25,6 +25,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioChunkIter(0),
     videoFrameIter(0),
     videoTimerIter(0),
+    avEqualizer(0),
     numPumpsCompleted(0),
     audioQueueingThread(nullptr),
     audioQueueingThreadRunning(false),
@@ -130,6 +131,7 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     audioChunkIter = 0;
     videoFrameIter = 0;
     videoTimerIter = 0;
+    avEqualizer    = 0;
     
     audioDataPtr = audioData;
     videoTimerPeriod = !videoSegments.empty() ? (videoSegments[0].sampleDuration / (double) videoSegments[0].timeScale) : (1001.0 / 30000.0);
@@ -209,24 +211,24 @@ void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffe
         return;
     }
     
-    // if this is the first call, don't track anything
-    if(!firstCallToPumpVideoFrame)
-    {
-        firstCallToPumpVideoFrame = true;
-        lastCallToPumpVideoFrame = std::chrono::high_resolution_clock::now();
-        return;
-    }
+    audioChunkIter += (uint32_t)buffersCompleted.size();
+//    PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer, (uint32_t)buffersCompleted.size());
     
-    audioChunkIter++;
-    PumpVideoFrame();
+    // NOTE: In a scheme where the audio chunk was both dynamically allocated and to be queued on
+    //       the Audiblizer only once, then we would here dispose of the 
     
     return;
 }
 
 void AudiblizerTestHarness::TimerPing()
 {
+    if(!initialized)
+    {
+        return;
+    }
+    
     videoTimerIter++;
-    PumpVideoFrame();
+    PumpVideoFrame(PumpVideoFrameSender_VideoTimer);
 }
 
 void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audiblizerTestHarness)
@@ -366,39 +368,39 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
     audiblizerTestHarness->audioQueueingThreadTerminated.Signal();
 }
 
-void AudiblizerTestHarness::PumpVideoFrame()
+void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t numPumps)
 {
     std::lock_guard<std::mutex> lock(videoPumpMutex);
-    
-    // if the videoTimerIter is way ahead of
-    // the audioChunkIter, then consume a tick
-    // and skip this pump
-    if(videoTimerIter > audioChunkIter + 2)
+    uint32_t numTicks = 1;
+
+#if 0
+    switch(sender)
     {
-        videoTimerIter--;
+        case PumpVideoFrameSender_VideoTimer:
+            avEqualizer += numPumps;
+            break;
+        case PumpVideoFrameSender_AudioUnqueuer:
+            avEqualizer -= numPumps;
+            break;
+    }
+    
+    // avEqualizer == 1 means A/V sync is good
+    // avEqualizer > 1 means video is getting ahead of audio
+    // avEqualizer < 1 means audio is getting ahead of video
+    // ------------------------------------------------------
+    if(avEqualizer > 1)
+    {
+        // video is getting ahead of audio, so we wait this round out
         return;
     }
-    // else if the audioChunkIter is way ahead
-    // of the videoTimerIter, we need to pump the
-    // video frame twice and then complete the rest
-    // of this function
-    else if(audioChunkIter > videoTimerIter + 2)
+    else if(avEqualizer < 1)
     {
-        videoTimerIter++;
-        
-        // *********************************************************
-        // *********************************************************
-        // FOR NOW WE JUST PERFORM AN EXTRA PUMP OF videoFrameIter
-        // HOWEVER!!! In a real player we will also have to visualize
-        // an extra frame, or somehow skip the playhead ahead a frame,
-        // thus skipping a frame in the playback scheme
-        // *********************************************************
-        // *********************************************************
-        videoFrameIter++;
+        numTicks = 2;
     }
+#endif
     
     // tick the videoFrameIter
-    videoFrameIter++;
+    videoFrameIter += numTicks;
     
     // *********************************************************
     // *********************************************************
@@ -436,7 +438,7 @@ void AudiblizerTestHarness::PumpVideoFrame()
     
     lastCallToPumpVideoFrame = now;
     cumulativeDelta += deltaFloatingPointSeconds;
-    numPumpsCompleted++;
+    numPumpsCompleted += numTicks;
     
     if(deltaFloatingPointSeconds > maxDelta)
     {
@@ -466,10 +468,10 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
         {
             if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > 2)
             {
-                printf("*** DRIFT ***");
+                printf("*** DRIFT ***  ");
             }
             
-            printf("A:%06lld   V:%06lld   delta sec:%f   total sec:%f\n",
+            printf("ACI:%06lld   VFI:%06lld   delta sec:%f   total sec:%f\n",
                    outputData.audioChunkIter, outputData.videoFrameIter,
                    outputData.deltaFloatingPointSeconds.count(),
                    outputData.totalFloatingPointSeconds.count());
