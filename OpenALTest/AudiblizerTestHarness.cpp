@@ -202,6 +202,10 @@ bool AudiblizerTestHarness::StopTest()
     {
         printf("*** VIDEO FRAME HICCUPS OCCURRED!!! ***");
     }
+    else
+    {
+        printf("No video frame hiccups occurred\n");
+    }
     
     return true;
 }
@@ -490,12 +494,14 @@ Exit:
 
 void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audiblizerTestHarness)
 {
-   bool queueIsEmpty = true;
+    bool queueIsEmpty = true;
+    bool vfHiccup = false;
     
     while(audiblizerTestHarness->dataOutputThreadRunning || !queueIsEmpty)
     {
         OutputData outputData;
         queueIsEmpty = true;
+        vfHiccup = false;
         
         audiblizerTestHarness->outputDataQueueMutex.lock();
         if(!audiblizerTestHarness->outputDataQueue.empty())
@@ -514,7 +520,7 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
             {
                 if(audiblizerTestHarness->lastVideoFrameIter + 1 != outputData.videoFrameIter)
                 {
-                    audiblizerTestHarness->videoFrameHiccup = true;
+                    audiblizerTestHarness->videoFrameHiccup = vfHiccup = true;
                 }
             }
             
@@ -527,10 +533,11 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
                 printf("*** DRIFT ***  ");
             }
             
-            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld   delta sec:%f   total sec:%f\n",
+            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f\n",
                    outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
                    outputData.avEqualizer,
                    outputData.audioChunkIter, outputData.videoFrameIter,
+                   vfHiccup ? "*" : " ",
                    outputData.deltaFloatingPointSeconds.count(),
                    outputData.totalFloatingPointSeconds.count());
         }
