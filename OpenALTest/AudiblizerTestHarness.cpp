@@ -129,6 +129,7 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     videoSegments = videoSegmentsArg;
     firstCallToPumpVideoFrame = false;
     maxDelta = std::chrono::duration<float>::zero();
+    minDelta = std::chrono::duration<float>(10000.0);
     cumulativeDelta = std::chrono::duration<float>::zero();
     numPumpsCompleted = 0;
     audioChunkIter = 0;
@@ -197,7 +198,7 @@ bool AudiblizerTestHarness::StopTest()
     
     // report average delta and max delta
     printf("***TestStopped***\n");
-    printf("Average Delta sec: %f  Max Delta sec: %f  Min Delta sec: %f\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), minDelta.count());
+    printf("Average Delta sec:%f  Max Delta sec:%f VFI:%llu  Min Delta sec:%f VFI:%llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
     if(videoFrameHiccup)
     {
         printf("*** VIDEO FRAME HICCUPS OCCURRED!!! ***");
@@ -481,11 +482,13 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     if(deltaFloatingPointSeconds > maxDelta)
     {
         maxDelta = deltaFloatingPointSeconds;
+        maxDeltaVideoFrameIter = videoFrameIter;
     }
     
     if(deltaFloatingPointSeconds < minDelta)
     {
         minDelta = deltaFloatingPointSeconds;
+        minDeltaVideoFrameIter = videoFrameIter;
     }
     
 Exit:

@@ -89,7 +89,9 @@ private:
     bool firstCallToPumpVideoFrame;
     
     std::chrono::duration<float> maxDelta;
+    uint64_t                     maxDeltaVideoFrameIter;
     std::chrono::duration<float> minDelta;
+    uint64_t                     minDeltaVideoFrameIter;
     std::chrono::duration<float> cumulativeDelta;
     uint64_t                     numPumpsCompleted;
     bool                         videoFrameHiccup;
