@@ -212,7 +212,7 @@ void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffe
     }
     
     audioChunkIter += (uint32_t)buffersCompleted.size();
-//    PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer, (uint32_t)buffersCompleted.size());
+    PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer);
     
     // NOTE: In a scheme where the audio chunk was both dynamically allocated and to be queued on
     //       the Audiblizer only once, then we would here dispose of the 
@@ -222,6 +222,8 @@ void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffe
 
 void AudiblizerTestHarness::TimerPing()
 {
+    std::lock_guard<std::mutex> lock(mutex);
+    
     if(!initialized)
     {
         return;
@@ -370,37 +372,55 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
 
 void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t numPumps)
 {
-    std::lock_guard<std::mutex> lock(videoPumpMutex);
-    uint32_t numTicks = 1;
+    std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
+    std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
+    OutputData outputData;
 
-#if 0
     switch(sender)
     {
         case PumpVideoFrameSender_VideoTimer:
+        {
             avEqualizer += numPumps;
+            
+            if(avEqualizer > 0)
+            {
+                videoFrameIter += numPumps;
+            }
+            else
+            {
+                goto Exit;
+            }
+            
             break;
+        }
         case PumpVideoFrameSender_AudioUnqueuer:
+        {
+            // audio dequeueing scenarios:
+            //
+            // 1) audio can be unqueued in single buffer units, and so it can (roughly) keep up w/ video
+            //      a) video is running slightly faster than audio
+            //
+            //      b) audio is running slightly faster than video
+            //
+            //
+            // 2) audio CANNOT be unqueued in single buffer units (as we see w/ Windows unqueueing audio buffers
+            //    that are sized to match frames of 1001/60000 video), and so we must allow the video to run on
+            //    ahead of the audio dequeueing, and then ***gracefully*** true up when audio can be dequeued
+            // -----------------------------------------------------------------------------------------------
+            
             avEqualizer -= numPumps;
-            break;
+            
+            if(avEqualizer < 0)
+            {
+                videoFrameIter += numPumps;
+            }
+            else
+            {
+                goto Exit;
+            }
+        }
     }
-    
-    // avEqualizer == 1 means A/V sync is good
-    // avEqualizer > 1 means video is getting ahead of audio
-    // avEqualizer < 1 means audio is getting ahead of video
-    // ------------------------------------------------------
-    if(avEqualizer > 1)
-    {
-        // video is getting ahead of audio, so we wait this round out
-        return;
-    }
-    else if(avEqualizer < 1)
-    {
-        numTicks = 2;
-    }
-#endif
-    
-    // tick the videoFrameIter
-    videoFrameIter += numTicks;
     
     // *********************************************************
     // *********************************************************
@@ -422,11 +442,10 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
         return;
     }
     
-    std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
-    std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
+    now = std::chrono::high_resolution_clock::now();
+    deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
+    totalFloatingPointSeconds = now - playbackStart;
     
-    OutputData outputData;
     outputData.audioChunkIter = audioChunkIter;
     outputData.videoFrameIter = videoFrameIter;
     outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
@@ -438,12 +457,15 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     
     lastCallToPumpVideoFrame = now;
     cumulativeDelta += deltaFloatingPointSeconds;
-    numPumpsCompleted += numTicks;
+    numPumpsCompleted += numPumps;
     
     if(deltaFloatingPointSeconds > maxDelta)
     {
         maxDelta = deltaFloatingPointSeconds;
     }
+    
+Exit:
+    return;
 }
 
 void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audiblizerTestHarness)
