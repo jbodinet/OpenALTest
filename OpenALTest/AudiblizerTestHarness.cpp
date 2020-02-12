@@ -351,6 +351,9 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
             
             // keep track of how much audio we just added to the audioChunks vector
             videoSegmentFrameIter += numVideoFramesToQueue;
+            
+            // remove the amount that we just queued
+            queueableAudioDurationMilliseconds -= currentChunkMilliseconds;
         }
         
         // queue the (valid) audioChunk onto the audiblizer
