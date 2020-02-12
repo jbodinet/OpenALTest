@@ -88,6 +88,7 @@ private:
     bool firstCallToPumpVideoFrame;
     
     std::chrono::duration<float> maxDelta;
+    std::chrono::duration<float> minDelta;
     std::chrono::duration<float> cumulativeDelta;
     uint64_t                     numPumpsCompleted;
     
@@ -104,6 +105,8 @@ private:
     class OutputData
     {
     public:
+        PumpVideoFrameSender pumpVideoFrameSender;
+        int64_t avEqualizer;
         int64_t audioChunkIter;
         int64_t videoFrameIter;
         std::chrono::duration<float> deltaFloatingPointSeconds;

@@ -21,6 +21,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audiblizer(nullptr),
     highPrecisionTimer(nullptr),
     maxDelta(std::chrono::duration<float>::zero()),
+    minDelta(10000.0),
     cumulativeDelta(std::chrono::duration<float>::zero()),
     audioChunkIter(0),
     videoFrameIter(0),
@@ -191,7 +192,7 @@ bool AudiblizerTestHarness::StopTest()
     }
     
     // report average delta and max delta
-    printf("TestStopped! Average Delta sec: %f  Max Delta sec: %f\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count());
+    printf("TestStopped!\nAverage Delta sec: %f  Max Delta sec: %f  Min Delta sec: %f\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), minDelta.count());
    
     return true;
 }
@@ -449,6 +450,8 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
     totalFloatingPointSeconds = now - playbackStart;
     
+    outputData.pumpVideoFrameSender = sender;
+    outputData.avEqualizer = avEqualizer;
     outputData.audioChunkIter = audioChunkIter;
     outputData.videoFrameIter = videoFrameIter;
     outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
@@ -465,6 +468,11 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     if(deltaFloatingPointSeconds > maxDelta)
     {
         maxDelta = deltaFloatingPointSeconds;
+    }
+    
+    if(deltaFloatingPointSeconds < minDelta)
+    {
+        minDelta = deltaFloatingPointSeconds;
     }
     
 Exit:
@@ -496,7 +504,9 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
                 printf("*** DRIFT ***  ");
             }
             
-            printf("ACI:%06lld   VFI:%06lld   delta sec:%f   total sec:%f\n",
+            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld   delta sec:%f   total sec:%f\n",
+                   outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
+                   outputData.avEqualizer,
                    outputData.audioChunkIter, outputData.videoFrameIter,
                    outputData.deltaFloatingPointSeconds.count(),
                    outputData.totalFloatingPointSeconds.count());
