@@ -71,6 +71,7 @@ private:
     size_t    audioDataTotalNumFrames;
     uint32_t  audioSampleRate;
     bool      audioIsStereo;
+    bool      audioIsSilence;
     double    audioDurationSeconds;
     const double maxQueuedAudioDurationSeconds;
     static const Audiblizer::AudioFormat audioFormat;
@@ -128,7 +129,7 @@ private:
     static void DataOutputThreadProc(AudiblizerTestHarness *audiblizerTestHarness);
     
     // --- Static Utility Functions ---
-    static void* GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, size_t *bufferSizeOut);
+    static void* GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, bool silence, size_t *bufferSizeOut);
     static void FreeAudioSample(void* data);
 };
 

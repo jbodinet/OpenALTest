@@ -35,6 +35,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioQueueingThreadTerminated(false, false),
     audioSampleRate(48000),
     audioIsStereo(true),
+    audioIsSilence(true),
     audioDurationSeconds(5.0),
     maxQueuedAudioDurationSeconds(4.0),
     dataOutputThread(nullptr),
@@ -86,7 +87,7 @@ bool AudiblizerTestHarness::Initialize()
     // Sample AudioData
     // --------------------------------------------
     FreeAudioSample(audioData);
-    audioData = (uint8_t*)GenerateAudioSample(audioSampleRate, audioDurationSeconds, audioIsStereo, &audioDataSize);
+    audioData = (uint8_t*)GenerateAudioSample(audioSampleRate, audioDurationSeconds, audioIsStereo, audioIsSilence, &audioDataSize);
     audioDataPtr = audioData;
     audioDataTotalNumDatums = audioDataSize / sizeof(uint16_t);
     audioDataTotalNumFrames = audioDataSize / Audiblizer::AudioFormatFrameByteLength(audioFormat);
@@ -552,7 +553,7 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
     }
 }
 
-void* AudiblizerTestHarness::GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, size_t *bufferSizeOut)
+void* AudiblizerTestHarness::GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, bool silence, size_t *bufferSizeOut)
 {
     if(audioFormat != Audiblizer::AudioFormat_Stereo16)
     {
@@ -573,10 +574,17 @@ void* AudiblizerTestHarness::GenerateAudioSample(uint32_t sampleRate, double dur
         goto Exit;
     }
     
-    for (uint32_t i = 0; i < bufferChannelFrames * numChannels; i += 2)
+    if(!silence)
     {
-        buffer[i] = 32768 - ((i % 100) * 660);
-        buffer[i+1] = buffer[i];
+        for (uint32_t i = 0; i < bufferChannelFrames * numChannels; i += 2)
+        {
+            buffer[i] = 32768 - ((i % 100) * 660);
+            buffer[i+1] = buffer[i];
+        }
+    }
+    else
+    {
+        memset(buffer, 0, bufferSize);
     }
     
     if(bufferSizeOut != nullptr)
