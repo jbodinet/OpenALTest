@@ -139,9 +139,16 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     videoTimerIter = 0;
     avEqualizer    = 0;
     videoFrameHiccup = false;
+    videoSegmentsTotalNumFrames = 0;
     
     audioDataPtr = audioData;
     videoTimerPeriod = !videoSegments.empty() ? (videoSegments[0].sampleDuration / (double) videoSegments[0].timeScale) : (1001.0 / 30000.0);
+    
+    // find the total num frames in the video segments
+    for(uint32_t i = 0; i < videoSegments.size(); i++)
+    {
+        videoSegmentsTotalNumFrames += videoSegments[i].numVideoFrames;
+    }
     
     // start up the high precision timer
     highPrecisionTimer->Start();
@@ -199,7 +206,7 @@ bool AudiblizerTestHarness::StopTest()
     
     // report average delta and max delta
     printf("***TestStopped***\n");
-    printf("Average Delta sec:%f  Max Delta sec:%f VFI:%llu  Min Delta sec:%f VFI:%llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
+    printf("Average Delta sec:%f  Max Delta sec:%f VFI:%06llu  Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
     if(videoFrameHiccup)
     {
         printf("*** VIDEO FRAME HICCUPS OCCURRED!!! ***");
@@ -417,7 +424,7 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
         {
             // audio dequeueing scenarios:
             //
-            // 1) audio can be unqueued in single buffer units, and so it can (roughly) keep up w/ video
+            // 1) audio is being unqueued in single buffer units, and so it can (roughly) keep up w/ video
             //      a) video is running slightly faster than audio
             //
             //      b) audio is running slightly faster than video
@@ -458,6 +465,13 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
         firstCallToPumpVideoFrame = true;
         lastCallToPumpVideoFrame = std::chrono::high_resolution_clock::now();
         playbackStart = lastCallToPumpVideoFrame;
+        return;
+    }
+    
+    // if we are trying to pump erroneous frames (which can occur
+    // near shutdown time
+    if(videoFrameIter > videoSegmentsTotalNumFrames)
+    {
         return;
     }
     
@@ -516,7 +530,7 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
         }
         audiblizerTestHarness->outputDataQueueMutex.unlock();
         
-        if(!queueIsEmpty)
+        if(!queueIsEmpty && outputData.videoFrameIter <= audiblizerTestHarness->videoSegmentsTotalNumFrames)
         {
             // handle info regarding last VFI
             // ---------------------------------------------------------------
@@ -529,7 +543,7 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
             }
             
             audiblizerTestHarness->lastVideoFrameIter = outputData.videoFrameIter;
-            
+        
             // output information
             // ---------------------------------------------------------------
             if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > 2)

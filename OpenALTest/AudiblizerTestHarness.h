@@ -64,6 +64,7 @@ private:
     std::shared_ptr<HighPrecisionTimer> highPrecisionTimer;
     
     VideoSegments videoSegments;
+    uint32_t      videoSegmentsTotalNumFrames;
     uint8_t  *audioData;
     uint8_t  *audioDataPtr;
     size_t    audioDataSize;
