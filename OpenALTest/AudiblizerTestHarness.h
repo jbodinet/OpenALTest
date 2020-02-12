@@ -46,7 +46,7 @@ public:
     
     std::shared_ptr<AudiblizerTestHarness> getptr() { return shared_from_this(); }
     
-    // HighPrecisionTimer::Delegate Interface
+    // HighPrecisionTimer::Delegate Interface - which is a VIDEO timer delegate
     // ------------------------------------------------------------------
     virtual void TimerPing();
     virtual double TimerPeriod() { return videoTimerPeriod; }
@@ -80,6 +80,7 @@ private:
     std::mutex videoPumpMutex;
     uint64_t audioChunkIter;
     uint64_t videoFrameIter;
+    uint64_t lastVideoFrameIter;
     uint64_t videoTimerIter;
     int64_t  avEqualizer; // video timer ticks ADD 1, audio buffers reclaimed SUBTRACT 1
     
@@ -91,6 +92,7 @@ private:
     std::chrono::duration<float> minDelta;
     std::chrono::duration<float> cumulativeDelta;
     uint64_t                     numPumpsCompleted;
+    bool                         videoFrameHiccup;
     
     bool initialized;
     

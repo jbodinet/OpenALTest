@@ -25,9 +25,11 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     cumulativeDelta(std::chrono::duration<float>::zero()),
     audioChunkIter(0),
     videoFrameIter(0),
+    lastVideoFrameIter(0),
     videoTimerIter(0),
     avEqualizer(0),
     numPumpsCompleted(0),
+    videoFrameHiccup(false),
     audioQueueingThread(nullptr),
     audioQueueingThreadRunning(false),
     audioQueueingThreadTerminated(false, false),
@@ -131,8 +133,10 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     numPumpsCompleted = 0;
     audioChunkIter = 0;
     videoFrameIter = 0;
+    lastVideoFrameIter = 0;
     videoTimerIter = 0;
     avEqualizer    = 0;
+    videoFrameHiccup = false;
     
     audioDataPtr = audioData;
     videoTimerPeriod = !videoSegments.empty() ? (videoSegments[0].sampleDuration / (double) videoSegments[0].timeScale) : (1001.0 / 30000.0);
@@ -192,8 +196,13 @@ bool AudiblizerTestHarness::StopTest()
     }
     
     // report average delta and max delta
-    printf("TestStopped!\nAverage Delta sec: %f  Max Delta sec: %f  Min Delta sec: %f\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), minDelta.count());
-   
+    printf("***TestStopped***\n");
+    printf("Average Delta sec: %f  Max Delta sec: %f  Min Delta sec: %f\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), minDelta.count());
+    if(videoFrameHiccup)
+    {
+        printf("*** VIDEO FRAME HICCUPS OCCURRED!!! ***");
+    }
+    
     return true;
 }
 
@@ -499,6 +508,20 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
         
         if(!queueIsEmpty)
         {
+            // handle info regarding last VFI
+            // ---------------------------------------------------------------
+            if(audiblizerTestHarness->lastVideoFrameIter != 0)
+            {
+                if(audiblizerTestHarness->lastVideoFrameIter + 1 != outputData.videoFrameIter)
+                {
+                    audiblizerTestHarness->videoFrameHiccup = true;
+                }
+            }
+            
+            audiblizerTestHarness->lastVideoFrameIter = outputData.videoFrameIter;
+            
+            // output information
+            // ---------------------------------------------------------------
             if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > 2)
             {
                 printf("*** DRIFT ***  ");
