@@ -238,7 +238,7 @@ void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffe
     PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer);
     
     // NOTE: In a scheme where the audio chunk was both dynamically allocated and to be queued on
-    //       the Audiblizer only once, then we would here dispose of the 
+    //       the Audiblizer only once, then we would here dispose of the audio memory
     
     return;
 }
