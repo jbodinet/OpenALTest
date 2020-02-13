@@ -20,7 +20,7 @@
 #include <chrono>
 #include <mutex>
 
-class AudiblizerTestHarness : public Audiblizer::BufferCompletionListener, public HighPrecisionTimer::Delegate, public std::enable_shared_from_this<AudiblizerTestHarness>
+class AudiblizerTestHarness : public Audiblizer::AudioChunkCompletionListener, public HighPrecisionTimer::Delegate, public std::enable_shared_from_this<AudiblizerTestHarness>
 {
 public:
     AudiblizerTestHarness();
@@ -42,7 +42,7 @@ public:
     bool StopTest();
     void WaitOnTestCompletion();
     
-    virtual void BuffersCompleted(const BuffersCompletedVector &buffersCompleted);
+    virtual void AudioChunkCompleted(const AudioChunkCompletedVector &buffersCompleted);
     
     std::shared_ptr<AudiblizerTestHarness> getptr() { return shared_from_this(); }
     
@@ -98,6 +98,11 @@ private:
     uint64_t                     numPumpsCompleted;
     bool                         videoFrameHiccup;
     
+    std::chrono::duration<double> audioPlaybackDurationActual;
+    double                        audioPlaybackDurationIdeal;
+    std::chrono::high_resolution_clock::time_point lastCallToAudioChunkCompleted;
+    bool                                           firstCallToAudioChunkCompleted;
+    
     bool initialized;
     
     // --- Audio Queueing Thread ---
@@ -117,6 +122,7 @@ private:
         int64_t videoFrameIter;
         std::chrono::duration<float> deltaFloatingPointSeconds;
         std::chrono::duration<float> totalFloatingPointSeconds;
+        double audioPlaybackRatio; // playbackDurationActual / playbackDurationIdeal
     };
     
     typedef std::queue<OutputData> OutputDataQueue;

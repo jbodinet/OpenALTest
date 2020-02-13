@@ -12,7 +12,7 @@ Audiblizer::Audiblizer() :
     device(nullptr),
     context(nullptr),
     source(0),
-    bufferCompletionListener(nullptr),
+    audioChunkCompletionListener(nullptr),
     processedBuffers(nullptr),
     processBuffersCount(0),
     audioBufferMapDurationMilliseconds(0),
@@ -56,7 +56,7 @@ Audiblizer::~Audiblizer()
 void Audiblizer::PrepareForDestruction()
 {
     Stop();
-    bufferCompletionListener = nullptr;
+    audioChunkCompletionListener = nullptr;
 }
 
 bool Audiblizer::Initialize()
@@ -188,9 +188,9 @@ CleanUp:
     return retVal;
 }
 
-void Audiblizer::SetBuffersCompletedListener(std::shared_ptr<BufferCompletionListener> listener)
+void Audiblizer::SetBuffersCompletedListener(std::shared_ptr<AudioChunkCompletionListener> listener)
 {
-    bufferCompletionListener = listener;
+    audioChunkCompletionListener = listener;
 }
 
 bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
@@ -208,6 +208,7 @@ bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
     ALint sourceState = 0;
     AudioBufferMapInsertionPair audioBufferMapInsertionPair;
     uint64_t audioChunkDurationMilliseconds;
+    double   audioChunkDurationSeconds;
     
     for(uint32_t i = 0; i < audioChunks.size(); i++)
     {
@@ -221,8 +222,9 @@ bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
             goto CleanUp;
         }
         
-        // find the duration of this audio chunk in milliseconds
+        // find the duration of this audio chunk
         // --------------------------------------------------------------
+        audioChunkDurationSeconds = (audioChunks[i].bufferSize) / (double)(AudioFormatFrameByteLength(audioChunks[i].format) * audioChunks[i].sampleRate);
         audioChunkDurationMilliseconds = (audioChunks[i].bufferSize * 1000.0) / (AudioFormatFrameByteLength(audioChunks[i].format) * audioChunks[i].sampleRate);
         
         // generate and initialize sound buffer
@@ -255,7 +257,7 @@ bool Audiblizer::QueueAudio(const AudioChunkVector &audioChunks)
         
         // insert buffer into audioBufferMap
         // --------------------------------------------------------------
-        audioBufferMapInsertionPair = audioBufferMap.insert(AudioBufferMapPair(buffer, AudioBufferMapValue(audioChunks[i].buffer, audioChunkDurationMilliseconds)));
+        audioBufferMapInsertionPair = audioBufferMap.insert(AudioBufferMapPair(buffer, AudioBufferMapValue(audioChunks[i].buffer, audioChunkDurationMilliseconds, audioChunkDurationSeconds)));
         if(!audioBufferMapInsertionPair.second)
         {
             retVal = false;
@@ -341,7 +343,7 @@ bool Audiblizer::Stop()
     alSourcei(source, AL_BUFFER, NULL);
     
     // -----------
-    // TODO - in the event that there is no bufferCompletionListener, who destroys any audio data bound to the source?
+    // TODO - in the event that there is no audioChunkCompletionListener, who destroys any audio data bound to the source?
     // -----------
     
     // clear out the audioBufferMap
@@ -368,7 +370,7 @@ bool Audiblizer::ProcessUnqueueableBuffers()
     bool retVal = true;
     ALCenum error = AL_NO_ERROR;
     ALint numBuffersProcessed = 0;
-    BufferCompletionListener::BuffersCompletedVector buffersCompleted;
+    AudioChunkCompletionListener::AudioChunkCompletedVector audioChunksCompleted;
     
     // find out how many buffers have been processed
     alGetSourcei(source, AL_BUFFERS_PROCESSED, &numBuffersProcessed);
@@ -422,9 +424,9 @@ bool Audiblizer::ProcessUnqueueableBuffers()
         {
             // if there is a listener, the listener is responsible for freeing this memory,
             // so insert the dataPtr into the buffersCompleted vector
-            if(bufferCompletionListener != nullptr)
+            if(audioChunkCompletionListener != nullptr)
             {
-                buffersCompleted.push_back(iter->second.audioBufferData);
+                audioChunksCompleted.push_back(AudioChunkCompletionListener::AudioChunkProperties(iter->second.audioBufferData, iter->second.audioBufferDurationSeconds));
             }
             // otherwise WE free() this memory
             else
@@ -450,10 +452,10 @@ bool Audiblizer::ProcessUnqueueableBuffers()
         }
     }
     
-    // call the bufferCompletion listener
-    if(bufferCompletionListener != nullptr)
+    // call the audioChunkCompletion listener
+    if(audioChunkCompletionListener != nullptr)
     {
-        bufferCompletionListener->BuffersCompleted(buffersCompleted);
+        audioChunkCompletionListener->AudioChunkCompleted(audioChunksCompleted);
     }
     
     // delete the buffers

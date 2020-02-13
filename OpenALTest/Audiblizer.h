@@ -27,15 +27,23 @@ class Audiblizer : public HighPrecisionTimer::Delegate
 public:
     enum AudioFormat { AudioFormat_None = 0, AudioFormat_Mono8, AudioFormat_Mono16, AudioFormat_Stereo8, AudioFormat_Stereo16 };
     
-    class BufferCompletionListener
+    class AudioChunkCompletionListener
     {
     public:
-        BufferCompletionListener() {}
-        virtual ~BufferCompletionListener() {}
+        AudioChunkCompletionListener() {}
+        virtual ~AudioChunkCompletionListener() {}
         
         // Listener is responsible for freeing these buffers
-        typedef std::vector<void*> BuffersCompletedVector;
-        virtual void BuffersCompleted(const BuffersCompletedVector &buffersCompleted) = 0;
+        class AudioChunkProperties
+        {
+        public:
+            AudioChunkProperties(void *bufferArg, double durationArg) { buffer = bufferArg; duration = durationArg; }
+            void *buffer;
+            double duration; // intended duration of this audio chunk in REAL seconds
+        };
+        
+        typedef std::vector<AudioChunkProperties> AudioChunkCompletedVector;
+        virtual void AudioChunkCompleted(const AudioChunkCompletedVector &audioChunksCompleted) = 0;
     };
     
     class AudioChunk
@@ -55,7 +63,7 @@ public:
     bool Initialize();
     void PrepareForDestruction();
     
-    void SetBuffersCompletedListener(std::shared_ptr<BufferCompletionListener> listener);
+    void SetBuffersCompletedListener(std::shared_ptr<AudioChunkCompletionListener> listener);
     
     typedef std::vector<AudioChunk> AudioChunkVector;
     bool QueueAudio(const AudioChunkVector &audioChunks);
@@ -85,16 +93,17 @@ private:
     ALuint      *processedBuffers;
     ALuint      processBuffersCount;
     
-    std::shared_ptr<BufferCompletionListener> bufferCompletionListener;
+    std::shared_ptr<AudioChunkCompletionListener> audioChunkCompletionListener;
     
     class AudioBufferMapValue
     {
     public:
         AudioBufferMapValue() { audioBufferData = nullptr; audioBufferDurationMilliseconds = 0; }
-        AudioBufferMapValue(void *data, uint64_t durationMS) { audioBufferData = data; audioBufferDurationMilliseconds = durationMS; }
+        AudioBufferMapValue(void *data, uint64_t durationMS, double duration) { audioBufferData = data; audioBufferDurationMilliseconds = durationMS; audioBufferDurationSeconds = duration; }
         
         void *audioBufferData;
-        uint64_t audioBufferDurationMilliseconds; // duration of this audio buffer
+        uint64_t audioBufferDurationMilliseconds; // duration of this audio buffer in TRUNCATED milliseconds
+        double   audioBufferDurationSeconds; // duration of this audio buffer in real secodns
     };
     
     typedef ALuint AudioBufferMapKey; // Buffer ID

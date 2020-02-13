@@ -129,6 +129,9 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     
     videoSegments = videoSegmentsArg;
     firstCallToPumpVideoFrame = false;
+    audioPlaybackDurationActual = std::chrono::duration<double>::zero();
+    audioPlaybackDurationIdeal = 0;
+    firstCallToAudioChunkCompleted = false;
     maxDelta = std::chrono::duration<float>::zero();
     minDelta = std::chrono::duration<float>(10000.0);
     cumulativeDelta = std::chrono::duration<float>::zero();
@@ -206,7 +209,7 @@ bool AudiblizerTestHarness::StopTest()
     
     // report average delta and max delta
     printf("***TestStopped***\n");
-    printf("Average Delta sec:%f  Max Delta sec:%f VFI:%06llu  Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
+    printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
     if(videoFrameHiccup)
     {
         printf("*** VIDEO FRAME HICCUPS OCCURRED!!! ***");
@@ -225,7 +228,7 @@ void AudiblizerTestHarness::WaitOnTestCompletion()
     
 }
 
-void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffersCompleted)
+void AudiblizerTestHarness::AudioChunkCompleted(const AudioChunkCompletedVector &audioChunksCompleted)
 {
     std::lock_guard<std::mutex> lock(mutex);
     
@@ -234,11 +237,30 @@ void AudiblizerTestHarness::BuffersCompleted(const BuffersCompletedVector &buffe
         return;
     }
     
-    audioChunkIter += (uint32_t)buffersCompleted.size();
-    PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer);
+    audioChunkIter += (uint32_t)audioChunksCompleted.size();
+    
+    if(!firstCallToAudioChunkCompleted)
+    {
+        lastCallToAudioChunkCompleted = std::chrono::high_resolution_clock::now();
+        firstCallToAudioChunkCompleted = true;
+    }
+    else
+    {
+        std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+        audioPlaybackDurationActual += (now - lastCallToAudioChunkCompleted);
+        
+        for(uint32_t i = 0; i < audioChunksCompleted.size(); i++)
+        {
+            audioPlaybackDurationIdeal += audioChunksCompleted[i].duration;
+        }
+        
+        lastCallToAudioChunkCompleted = now;
+    }
+    
+    PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer, (int32_t)audioChunksCompleted.size());
     
     // NOTE: In a scheme where the audio chunk was both dynamically allocated and to be queued on
-    //       the Audiblizer only once, then we would here dispose of the audio memory
+    //       the Audiblizer only once, we would here dispose of the audio memory here
     
     return;
 }
@@ -254,6 +276,123 @@ void AudiblizerTestHarness::TimerPing()
     
     videoTimerIter++;
     PumpVideoFrame(PumpVideoFrameSender_VideoTimer);
+}
+
+void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t numPumps)
+{
+    std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
+    std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
+    OutputData outputData;
+    
+    switch(sender)
+    {
+        case PumpVideoFrameSender_VideoTimer:
+        {
+            avEqualizer += numPumps;
+            
+            if(avEqualizer > 0)
+            {
+                videoFrameIter += numPumps;
+            }
+            else
+            {
+                goto Exit;
+            }
+            
+            break;
+        }
+        case PumpVideoFrameSender_AudioUnqueuer:
+        {
+            // audio dequeueing scenarios:
+            //
+            // 1) audio is being unqueued in single buffer units, and so it can (roughly) keep up w/ video
+            //      a) video is running slightly faster than audio
+            //
+            //      b) audio is running slightly faster than video
+            //
+            //
+            // 2) audio CANNOT be unqueued in single buffer units (as we see w/ Windows unqueueing audio buffers
+            //    that are sized to match frames of 1001/60000 video), and so we must allow the video to run on
+            //    ahead of the audio dequeueing, and then ***gracefully*** true up when audio can be dequeued
+            // -----------------------------------------------------------------------------------------------
+            
+            avEqualizer -= numPumps;
+            
+            if(avEqualizer < 0)
+            {
+                videoFrameIter += abs(avEqualizer);
+                avEqualizer = 0;
+                RefreshLastPing();
+            }
+            else
+            {
+                goto Exit;
+            }
+        }
+    }
+    
+    // *********************************************************
+    // *********************************************************
+    // We would do something here to pump the video renderer
+    // to render either the NEXT frame, or SKIP a frame and then
+    // render the frame after that!!!
+    // *********************************************************
+    // *********************************************************
+    
+    // Instead, here we just output the data
+    // ---------------------------------------------------------
+    
+    // however, if this is the first call, don't output anything
+    if(!firstCallToPumpVideoFrame)
+    {
+        firstCallToPumpVideoFrame = true;
+        lastCallToPumpVideoFrame = std::chrono::high_resolution_clock::now();
+        playbackStart = lastCallToPumpVideoFrame;
+        return;
+    }
+    
+    // if we are trying to pump erroneous frames (which can occur
+    // near shutdown time
+    if(videoFrameIter > videoSegmentsTotalNumFrames)
+    {
+        return;
+    }
+    
+    now = std::chrono::high_resolution_clock::now();
+    deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
+    totalFloatingPointSeconds = now - playbackStart;
+    
+    outputData.pumpVideoFrameSender = sender;
+    outputData.avEqualizer = avEqualizer;
+    outputData.audioChunkIter = audioChunkIter;
+    outputData.videoFrameIter = videoFrameIter;
+    outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
+    outputData.totalFloatingPointSeconds = totalFloatingPointSeconds;
+    outputData.audioPlaybackRatio = audioPlaybackDurationActual.count() / audioPlaybackDurationIdeal;
+    
+    outputDataQueueMutex.lock();
+    outputDataQueue.push(outputData);
+    outputDataQueueMutex.unlock();
+    
+    lastCallToPumpVideoFrame = now;
+    cumulativeDelta += deltaFloatingPointSeconds;
+    numPumpsCompleted += numPumps;
+    
+    if(deltaFloatingPointSeconds > maxDelta)
+    {
+        maxDelta = deltaFloatingPointSeconds;
+        maxDeltaVideoFrameIter = videoFrameIter;
+    }
+    
+    if(deltaFloatingPointSeconds < minDelta)
+    {
+        minDelta = deltaFloatingPointSeconds;
+        minDeltaVideoFrameIter = videoFrameIter;
+    }
+    
+Exit:
+    return;
 }
 
 void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audiblizerTestHarness)
@@ -396,120 +535,6 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
     audiblizerTestHarness->audioQueueingThreadTerminated.Signal();
 }
 
-void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t numPumps)
-{
-    std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
-    std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
-    OutputData outputData;
-
-    switch(sender)
-    {
-        case PumpVideoFrameSender_VideoTimer:
-        {
-            avEqualizer += numPumps;
-            
-            if(avEqualizer > 0)
-            {
-                videoFrameIter += numPumps;
-            }
-            else
-            {
-                goto Exit;
-            }
-            
-            break;
-        }
-        case PumpVideoFrameSender_AudioUnqueuer:
-        {
-            // audio dequeueing scenarios:
-            //
-            // 1) audio is being unqueued in single buffer units, and so it can (roughly) keep up w/ video
-            //      a) video is running slightly faster than audio
-            //
-            //      b) audio is running slightly faster than video
-            //
-            //
-            // 2) audio CANNOT be unqueued in single buffer units (as we see w/ Windows unqueueing audio buffers
-            //    that are sized to match frames of 1001/60000 video), and so we must allow the video to run on
-            //    ahead of the audio dequeueing, and then ***gracefully*** true up when audio can be dequeued
-            // -----------------------------------------------------------------------------------------------
-            
-            avEqualizer -= numPumps;
-            
-            if(avEqualizer < 0)
-            {
-                videoFrameIter += numPumps;
-            }
-            else
-            {
-                goto Exit;
-            }
-        }
-    }
-    
-    // *********************************************************
-    // *********************************************************
-    // We would do something here to pump the video renderer
-    // to render either the NEXT frame, or SKIP a frame and then
-    // render the frame after that!!!
-    // *********************************************************
-    // *********************************************************
-    
-    // Instead, here we just output the data
-    // ---------------------------------------------------------
-    
-    // however, if this is the first call, don't output anything
-    if(!firstCallToPumpVideoFrame)
-    {
-        firstCallToPumpVideoFrame = true;
-        lastCallToPumpVideoFrame = std::chrono::high_resolution_clock::now();
-        playbackStart = lastCallToPumpVideoFrame;
-        return;
-    }
-    
-    // if we are trying to pump erroneous frames (which can occur
-    // near shutdown time
-    if(videoFrameIter > videoSegmentsTotalNumFrames)
-    {
-        return;
-    }
-    
-    now = std::chrono::high_resolution_clock::now();
-    deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
-    totalFloatingPointSeconds = now - playbackStart;
-    
-    outputData.pumpVideoFrameSender = sender;
-    outputData.avEqualizer = avEqualizer;
-    outputData.audioChunkIter = audioChunkIter;
-    outputData.videoFrameIter = videoFrameIter;
-    outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
-    outputData.totalFloatingPointSeconds = totalFloatingPointSeconds;
-    
-    outputDataQueueMutex.lock();
-    outputDataQueue.push(outputData);
-    outputDataQueueMutex.unlock();
-    
-    lastCallToPumpVideoFrame = now;
-    cumulativeDelta += deltaFloatingPointSeconds;
-    numPumpsCompleted += numPumps;
-    
-    if(deltaFloatingPointSeconds > maxDelta)
-    {
-        maxDelta = deltaFloatingPointSeconds;
-        maxDeltaVideoFrameIter = videoFrameIter;
-    }
-    
-    if(deltaFloatingPointSeconds < minDelta)
-    {
-        minDelta = deltaFloatingPointSeconds;
-        minDeltaVideoFrameIter = videoFrameIter;
-    }
-    
-Exit:
-    return;
-}
-
 void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audiblizerTestHarness)
 {
     bool queueIsEmpty = true;
@@ -551,13 +576,14 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
                 printf("*** DRIFT ***  ");
             }
             
-            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f\n",
+            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f   AudPbkRatio:%f\n",
                    outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
                    outputData.avEqualizer,
                    outputData.audioChunkIter, outputData.videoFrameIter,
                    vfHiccup ? "*" : " ",
                    outputData.deltaFloatingPointSeconds.count(),
-                   outputData.totalFloatingPointSeconds.count());
+                   outputData.totalFloatingPointSeconds.count(),
+                   outputData.audioPlaybackRatio);
         }
         else
         {
