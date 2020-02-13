@@ -30,7 +30,6 @@ public:
         virtual bool Running() { return timerRunning; }
         virtual void LastPing(const std::chrono::high_resolution_clock::time_point &lp) { lastPing = lp; }
         virtual void RefreshLastPing() { lastPing = std::chrono::high_resolution_clock::now(); }
-        virtual void BumpLastPing(int32_t microseconds) { microseconds < 0 ? lastPing -= std::chrono::microseconds(-microseconds) : lastPing += std::chrono::microseconds(microseconds); }
         virtual std::chrono::high_resolution_clock::time_point LastPing() { return lastPing; }
         
         virtual void TimerPing() = 0; // gets called when timer fires
