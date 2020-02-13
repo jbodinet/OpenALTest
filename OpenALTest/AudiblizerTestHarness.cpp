@@ -296,13 +296,6 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
     OutputData outputData;
     
-    if(audiblizer != nullptr && !firstCallToPumpVideoFrame && sender == PumpVideoFrameSender_VideoTimer)
-    {
-        // if we have an audiblizer, then the first pump that we should observe
-        // should be from the audiblizer
-        return;
-    }
-    
     switch(sender)
     {
         case PumpVideoFrameSender_VideoTimer:
