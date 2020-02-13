@@ -97,6 +97,7 @@ private:
     std::chrono::duration<float> cumulativeDelta;
     uint64_t                     numPumpsCompleted;
     bool                         videoFrameHiccup;
+    bool                         avDrift;
     
     std::chrono::duration<double> audioPlaybackDurationActual;
     double                        audioPlaybackDurationIdeal;

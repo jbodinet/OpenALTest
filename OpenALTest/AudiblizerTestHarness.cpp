@@ -30,6 +30,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     avEqualizer(0),
     numPumpsCompleted(0),
     videoFrameHiccup(false),
+    avDrift(false),
     audioQueueingThread(nullptr),
     audioQueueingThreadRunning(false),
     audioQueueingThreadTerminated(false, false),
@@ -142,6 +143,7 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     videoTimerIter = 0;
     avEqualizer    = 0;
     videoFrameHiccup = false;
+    avDrift = false;
     videoSegmentsTotalNumFrames = 0;
     
     audioDataPtr = audioData;
@@ -219,6 +221,15 @@ bool AudiblizerTestHarness::StopTest()
         printf("No video frame hiccups occurred\n");
     }
     
+    if(avDrift)
+    {
+        printf("*** AUDIO/VIDEO DRIFT OCCURRED!!! ***");
+    }
+    else
+    {
+        printf("No audio/video drift occurred\n");
+    }
+    
     return true;
 }
 
@@ -285,6 +296,13 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
     OutputData outputData;
     
+    if(audiblizer != nullptr && !firstCallToPumpVideoFrame && sender == PumpVideoFrameSender_VideoTimer)
+    {
+        // if we have an audiblizer, then the first pump that we should observe
+        // should be from the audiblizer
+        return;
+    }
+    
     switch(sender)
     {
         case PumpVideoFrameSender_VideoTimer:
@@ -321,12 +339,12 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             
             if(avEqualizer < 0)
             {
-                // if audio is taking over, consume all of the ticks that audio has entered into the system,
-                // and then reset the video clock so that video is the one that drives playback once more
+                // if audio is taking over the timing scheme, then consume all of the ticks that audio has entered
+                // into the system and then reset the video clock so that video is the one that drives playback once more
                 // (because the video timer is much smoother than the audio dequeueing scheme)
                 videoFrameIter += abs(avEqualizer);
                 avEqualizer = 0;
-                RefreshLastPing();
+                RefreshLastPing(); // the HighPrecisionTimer Delegate base-class of *this* class represents Video!!!
             }
             else
             {
@@ -572,10 +590,12 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
             
             audiblizerTestHarness->lastVideoFrameIter = outputData.videoFrameIter;
         
-            // output information
+            // see if there was any av drift
             // ---------------------------------------------------------------
-            if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > 2)
+            if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > 1)
             {
+                audiblizerTestHarness->avDrift = true;
+                
                 printf("*** DRIFT ***  ");
             }
             
