@@ -34,7 +34,7 @@ public:
     
     virtual void SetTimerPeriod(double period) { timerPeriod = period; }
     
-    // HighPrecisionTimer::Delegate Interface - which is a VIDEO timer delegate
+    // HighPrecisionTimer::Delegate Interface
     // ------------------------------------------------------------------
     virtual void TimerPing() { if(timerPingListener != nullptr) timerPingListener->VideoTimerPing(); }
     virtual double TimerPeriod() { return timerPeriod; }
