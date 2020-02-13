@@ -130,9 +130,6 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     
     videoSegments = videoSegmentsArg;
     firstCallToPumpVideoFrame = false;
-    audioPlaybackDurationActual = std::chrono::duration<double>::zero();
-    audioPlaybackDurationIdeal = 0;
-    firstCallToAudioChunkCompleted = false;
     maxDelta = std::chrono::duration<float>::zero();
     minDelta = std::chrono::duration<float>(10000.0);
     cumulativeDelta = std::chrono::duration<float>::zero();
@@ -249,25 +246,6 @@ void AudiblizerTestHarness::AudioChunkCompleted(const AudioChunkCompletedVector 
     }
     
     audioChunkIter += (uint32_t)audioChunksCompleted.size();
-    
-    if(!firstCallToAudioChunkCompleted)
-    {
-        lastCallToAudioChunkCompleted = std::chrono::high_resolution_clock::now();
-        firstCallToAudioChunkCompleted = true;
-    }
-    else
-    {
-        std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-        audioPlaybackDurationActual += (now - lastCallToAudioChunkCompleted);
-        
-        for(uint32_t i = 0; i < audioChunksCompleted.size(); i++)
-        {
-            audioPlaybackDurationIdeal += audioChunksCompleted[i].duration;
-        }
-        
-        lastCallToAudioChunkCompleted = now;
-    }
-    
     PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer, (int32_t)audioChunksCompleted.size());
     
     // NOTE: In a scheme where the audio chunk was both dynamically allocated and to be queued on
@@ -383,7 +361,6 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     outputData.videoFrameIter = videoFrameIter;
     outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
     outputData.totalFloatingPointSeconds = totalFloatingPointSeconds;
-    outputData.audioPlaybackRatio = audioPlaybackDurationActual.count() / audioPlaybackDurationIdeal;
     
     outputDataQueueMutex.lock();
     outputDataQueue.push(outputData);
@@ -592,14 +569,13 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
                 printf("*** DRIFT ***  ");
             }
             
-            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f   AudPbkRatio:%f\n",
+            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f\n",
                    outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
                    outputData.avEqualizer,
                    outputData.audioChunkIter, outputData.videoFrameIter,
                    vfHiccup ? "*" : " ",
                    outputData.deltaFloatingPointSeconds.count(),
-                   outputData.totalFloatingPointSeconds.count(),
-                   outputData.audioPlaybackRatio);
+                   outputData.totalFloatingPointSeconds.count());
         }
         else
         {

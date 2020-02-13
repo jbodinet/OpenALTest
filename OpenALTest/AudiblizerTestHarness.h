@@ -98,12 +98,7 @@ private:
     uint64_t                     numPumpsCompleted;
     bool                         videoFrameHiccup;
     bool                         avDrift;
-    
-    std::chrono::duration<double> audioPlaybackDurationActual;
-    double                        audioPlaybackDurationIdeal;
-    std::chrono::high_resolution_clock::time_point lastCallToAudioChunkCompleted;
-    bool                                           firstCallToAudioChunkCompleted;
-    
+
     bool initialized;
     
     // --- Audio Queueing Thread ---
@@ -123,7 +118,6 @@ private:
         int64_t videoFrameIter;
         std::chrono::duration<float> deltaFloatingPointSeconds;
         std::chrono::duration<float> totalFloatingPointSeconds;
-        double audioPlaybackRatio; // playbackDurationActual / playbackDurationIdeal
     };
     
     typedef std::queue<OutputData> OutputDataQueue;
