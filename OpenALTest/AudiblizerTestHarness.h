@@ -9,8 +9,9 @@
 #ifndef AudiblizerTestHarness_h
 #define AudiblizerTestHarness_h
 
-#include "Audiblizer.h"
 #include "HighPrecisionTimer.h"
+#include "Audiblizer.h"
+#include "VideoTimerDelegate.h"
 #include "Event.h"
 
 #include <vector>
@@ -20,11 +21,13 @@
 #include <chrono>
 #include <mutex>
 
-class AudiblizerTestHarness : public Audiblizer::AudioChunkCompletionListener, public HighPrecisionTimer::Delegate, public std::enable_shared_from_this<AudiblizerTestHarness>
+class AudiblizerTestHarness : public Audiblizer::AudioChunkCompletionListener, public VideoTimerDelegate::TimerPingListener, public std::enable_shared_from_this<AudiblizerTestHarness>
 {
 public:
     AudiblizerTestHarness();
     ~AudiblizerTestHarness();
+    
+    std::shared_ptr<AudiblizerTestHarness> getptr() { return shared_from_this(); }
     
     bool Initialize();
     void PrepareForDestruction();
@@ -42,15 +45,13 @@ public:
     bool StopTest();
     void WaitOnTestCompletion();
     
+    // Audiblizer::AudioChunkCompletionListener interface
+    // ------------------------------------------------------------------
     virtual void AudioChunkCompleted(const AudioChunkCompletedVector &buffersCompleted);
     
-    std::shared_ptr<AudiblizerTestHarness> getptr() { return shared_from_this(); }
-    
-    // HighPrecisionTimer::Delegate Interface - which is a VIDEO timer delegate
+    // VideoTimerDelegate::TimerPingListener interface
     // ------------------------------------------------------------------
-    virtual void TimerPing();
-    virtual double TimerPeriod() { return videoTimerPeriod; }
-    virtual bool FireOnce() { return false; }
+    virtual void VideoTimerPing();
     
     // Video FrameHead
     // ------------------------------------------------------------------
@@ -61,6 +62,7 @@ private:
     std::mutex mutex;
     
     std::shared_ptr<Audiblizer> audiblizer;
+    std::shared_ptr<VideoTimerDelegate> videoTimerDelegate;
     std::shared_ptr<HighPrecisionTimer> highPrecisionTimer;
     
     VideoSegments videoSegments;
@@ -76,8 +78,6 @@ private:
     double    audioDurationSeconds;
     const double maxQueuedAudioDurationSeconds;
     static const Audiblizer::AudioFormat audioFormat;
-    
-    double videoTimerPeriod;
     
     std::mutex videoPumpMutex;
     uint64_t audioChunkIter;

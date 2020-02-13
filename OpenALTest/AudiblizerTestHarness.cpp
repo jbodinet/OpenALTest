@@ -16,7 +16,6 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioDataSize(0),
     audioDataTotalNumDatums(0),
     audioDataTotalNumFrames(0),
-    videoTimerPeriod(1001.0 / 30000.0),
     firstCallToPumpVideoFrame(false),
     audiblizer(nullptr),
     highPrecisionTimer(nullptr),
@@ -70,7 +69,7 @@ bool AudiblizerTestHarness::Initialize()
     // Audiblizer
     // --------------------------------------------
     audiblizer = std::make_shared<Audiblizer>();
-    if(!audiblizer->Initialize())
+    if(audiblizer == nullptr || !audiblizer->Initialize())
     {
         audiblizer = nullptr;
         retVal = false;
@@ -80,12 +79,24 @@ bool AudiblizerTestHarness::Initialize()
     
     audiblizer->SetBuffersCompletedListener(getptr());
     
+    // VideoTimerDelegate
+    // --------------------------------------------
+    videoTimerDelegate = std::make_shared<VideoTimerDelegate>();
+    if(videoTimerDelegate == nullptr)
+    {
+        retVal = false;
+        
+        goto Exit;
+    }
+    
+    videoTimerDelegate->SetTimerPingListener(getptr());
+    
     // HighPrecisionTimer
     // --------------------------------------------
     highPrecisionTimer = std::make_shared<HighPrecisionTimer>();
     
-    // add 'this' and audiblizer as delegates to timer
-    highPrecisionTimer->AddDelegate(getptr());
+    // add videoTimerDelegate and audiblizer as delegates to timer
+    highPrecisionTimer->AddDelegate(videoTimerDelegate);
     highPrecisionTimer->AddDelegate(audiblizer);
     
     // Sample AudioData
@@ -113,7 +124,9 @@ void AudiblizerTestHarness::PrepareForDestruction()
     
     StopTest();
     audiblizer->PrepareForDestruction();
+    videoTimerDelegate->PrepareForDestruction();
     audiblizer = nullptr;
+    videoTimerDelegate = nullptr;
     initialized = false;
 }
 
@@ -150,7 +163,8 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     videoSegmentsTotalNumFrames = 0;
     
     audioDataPtr = audioData;
-    videoTimerPeriod = !videoSegments.empty() ? (videoSegments[0].sampleDuration / (double) videoSegments[0].timeScale) : (1001.0 / 30000.0);
+   
+    videoTimerDelegate->SetTimerPeriod(!videoSegments.empty() ? (videoSegments[0].sampleDuration / (double) videoSegments[0].timeScale) : (1001.0 / 30000.0));
     
     // find the total num frames in the video segments
     for(uint32_t i = 0; i < videoSegments.size(); i++)
@@ -260,7 +274,7 @@ void AudiblizerTestHarness::AudioChunkCompleted(const AudioChunkCompletedVector 
     return;
 }
 
-void AudiblizerTestHarness::TimerPing()
+void AudiblizerTestHarness::VideoTimerPing()
 {
     std::lock_guard<std::mutex> lock(mutex);
     
@@ -321,7 +335,7 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
                 // (because the video timer is much smoother than the audio dequeueing scheme)
                 videoFrameIter += abs(avEqualizer);
                 avEqualizer = 0;
-                RefreshLastPing(); // the HighPrecisionTimer Delegate base-class of *this* class represents Video!!!
+                videoTimerDelegate->RefreshLastPing();
             }
             else
             {
