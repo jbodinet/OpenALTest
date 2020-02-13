@@ -321,6 +321,9 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             
             if(avEqualizer < 0)
             {
+                // if audio is taking over, consume all of the ticks that audio has entered into the system,
+                // and then reset the video clock so that video is the one that drives playback once more
+                // (because the video timer is much smoother than the audio dequeueing scheme)
                 videoFrameIter += abs(avEqualizer);
                 avEqualizer = 0;
                 RefreshLastPing();
