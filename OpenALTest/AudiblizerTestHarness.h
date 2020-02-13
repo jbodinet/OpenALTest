@@ -97,8 +97,11 @@ private:
     std::chrono::duration<float> cumulativeDelta;
     uint64_t                     numPumpsCompleted;
     bool                         videoFrameHiccup;
+    uint32_t                     maxVideoFrameHiccup;
     bool                         avDrift;
-
+    uint32_t                     avDriftNumFrames; // how many video frames reported drift from the audio
+    uint32_t                     maxAVDrift;
+    
     bool initialized;
     
     // --- Audio Queueing Thread ---

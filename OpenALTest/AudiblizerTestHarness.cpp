@@ -30,7 +30,10 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     avEqualizer(0),
     numPumpsCompleted(0),
     videoFrameHiccup(false),
+    maxVideoFrameHiccup(0),
     avDrift(false),
+    avDriftNumFrames(0),
+    maxAVDrift(0),
     audioQueueingThread(nullptr),
     audioQueueingThreadRunning(false),
     audioQueueingThreadTerminated(false, false),
@@ -140,7 +143,10 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg)
     videoTimerIter = 0;
     avEqualizer    = 0;
     videoFrameHiccup = false;
+    maxVideoFrameHiccup = 0;
     avDrift = false;
+    avDriftNumFrames = 0;
+    maxAVDrift = 0;
     videoSegmentsTotalNumFrames = 0;
     
     audioDataPtr = audioData;
@@ -211,7 +217,7 @@ bool AudiblizerTestHarness::StopTest()
     printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
     if(videoFrameHiccup)
     {
-        printf("*** VIDEO FRAME HICCUPS OCCURRED!!! ***");
+        printf("*** VIDEO FRAME HICCUPS OCCURRED!!! MAX HICCUP: %d VIDEO FRAMES ***", maxVideoFrameHiccup);
     }
     else
     {
@@ -220,7 +226,7 @@ bool AudiblizerTestHarness::StopTest()
     
     if(avDrift)
     {
-        printf("*** AUDIO/VIDEO DRIFT OCCURRED!!! ***");
+        printf("*** AUDIO/VIDEO DRIFT OCCURRED!!! MAX DRIFT: %d VIDEO FRAMES - NUM FRAMES WITH DRIFT: %d - %% FRAMES WITH DRIFT: %f%% ***\n", maxAVDrift, avDriftNumFrames, (avDriftNumFrames / (double) videoSegmentsTotalNumFrames) * 100.0);
     }
     else
     {
@@ -370,16 +376,24 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     cumulativeDelta += deltaFloatingPointSeconds;
     numPumpsCompleted += numPumps;
     
-    if(deltaFloatingPointSeconds > maxDelta)
+    // figure out max / min deltas
+    // HOWEVER! do not report max / min deltas for first or last frames
+    // -----------------------------------------------------------------
+    if(videoFrameIter != 0 &&
+       videoFrameIter != 1 &&
+       videoFrameIter != videoSegmentsTotalNumFrames)
     {
-        maxDelta = deltaFloatingPointSeconds;
-        maxDeltaVideoFrameIter = videoFrameIter;
-    }
-    
-    if(deltaFloatingPointSeconds < minDelta)
-    {
-        minDelta = deltaFloatingPointSeconds;
-        minDeltaVideoFrameIter = videoFrameIter;
+        if(deltaFloatingPointSeconds > maxDelta)
+        {
+            maxDelta = deltaFloatingPointSeconds;
+            maxDeltaVideoFrameIter = videoFrameIter;
+        }
+        
+        if(deltaFloatingPointSeconds < minDelta)
+        {
+            minDelta = deltaFloatingPointSeconds;
+            minDeltaVideoFrameIter = videoFrameIter;
+        }
     }
     
 Exit:
@@ -555,6 +569,10 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
                 if(audiblizerTestHarness->lastVideoFrameIter + 1 != outputData.videoFrameIter)
                 {
                     audiblizerTestHarness->videoFrameHiccup = vfHiccup = true;
+                    if(outputData.videoFrameIter - audiblizerTestHarness->lastVideoFrameIter > audiblizerTestHarness->maxVideoFrameHiccup)
+                    {
+                        audiblizerTestHarness->maxVideoFrameHiccup = (uint32_t) (outputData.videoFrameIter - audiblizerTestHarness->lastVideoFrameIter);
+                    }
                 }
             }
             
@@ -565,6 +583,12 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
             if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > 1)
             {
                 audiblizerTestHarness->avDrift = true;
+                audiblizerTestHarness->avDriftNumFrames++;
+                
+                if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > audiblizerTestHarness->maxAVDrift)
+                {
+                    audiblizerTestHarness->maxAVDrift = (uint32_t) abs(outputData.audioChunkIter - outputData.videoFrameIter);
+                }
                 
                 printf("*** DRIFT ***  ");
             }
