@@ -41,7 +41,7 @@ public:
     };
     
     typedef std::vector<VideoParameters> VideoSegments;
-    bool StartTest(const VideoSegments &videoSegments);
+    bool StartTest(const VideoSegments &videoSegments, double audioPlayrateFactor = 1.0);
     bool StopTest();
     void WaitOnTestCompletion();
     
@@ -76,6 +76,7 @@ private:
     bool      audioIsStereo;
     bool      audioIsSilence;
     double    audioDurationSeconds;
+    double    audioPlayrateFactor;
     const double maxQueuedAudioDurationSeconds;
     static const Audiblizer::AudioFormat audioFormat;
     

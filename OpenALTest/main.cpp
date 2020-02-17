@@ -21,6 +21,7 @@ int main(int argc, const char * argv[])
     std::shared_ptr<AudiblizerTestHarness> audiblizerTestHarness = std::make_shared<AudiblizerTestHarness>();
     AudiblizerTestHarness::VideoSegments videoSegments;
     AudiblizerTestHarness::VideoParameters videoParameters;
+    double audioPlayrateFactor;
     
     // initialize test harness
     // ---------------------------------------
@@ -39,9 +40,12 @@ int main(int argc, const char * argv[])
     videoParameters.numVideoFrames = 1800;
     videoSegments.push_back(videoParameters);
     
+    // potentially adversarial testing parameters
+    audioPlayrateFactor = 1.02;
+    
     // start test
     // ---------------------------------------
-    if(!audiblizerTestHarness->StartTest(videoSegments))
+    if(!audiblizerTestHarness->StartTest(videoSegments, audioPlayrateFactor))
     {
         printf("AudiblizerTestHarness StartTest Error!!!\n");
         goto Exit;
