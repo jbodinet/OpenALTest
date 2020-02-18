@@ -41,7 +41,7 @@ public:
     };
     
     typedef std::vector<VideoParameters> VideoSegments;
-    bool StartTest(const VideoSegments &videoSegments, double adversarialTestingAudioPlayrateFactor = 1.0);
+    bool StartTest(const VideoSegments &videoSegments, double adversarialTestingAudioPlayrateFactor = 1.0, uint32_t adversarialTestingAudioChunkCacheSize = 1);
     bool StopTest();
     void WaitOnTestCompletion();
     
@@ -81,6 +81,9 @@ private:
     static const Audiblizer::AudioFormat audioFormat;
     
     double    adversarialTestingAudioPlayrateFactor; // a way to adversarially test a/v sync by either making audio play fast or play slow
+    uint32_t  adversarialTestingAudioChunkCacheSize;
+    uint32_t  adversarialTestingAudioChunkCacheAccum; // we don't really need to cache the audio chunks, just collect the 'pings' and then
+                                                        // broadcast them all at once
     
     std::mutex videoPumpMutex;
     uint64_t audioChunkIter;
@@ -126,6 +129,7 @@ private:
         PumpVideoFrameSender pumpVideoFrameSender;
         int64_t avEqualizer;
         int64_t audioChunkIter;
+        uint32_t adversarialTestingAudioChunkCacheAccum;
         int64_t videoFrameIter;
         std::chrono::duration<float> deltaFloatingPointSeconds;
         std::chrono::duration<float> totalFloatingPointSeconds;

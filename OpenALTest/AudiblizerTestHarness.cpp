@@ -42,6 +42,8 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioDurationSeconds(5.0),
     audioPlayrateFactor(1.0),
     adversarialTestingAudioPlayrateFactor(1.0),
+    adversarialTestingAudioChunkCacheSize(1),
+    adversarialTestingAudioChunkCacheAccum(0),
     maxQueuedAudioDurationSeconds(4.0),
     dataOutputThread(nullptr),
     dataOutputThreadRunning(false),
@@ -132,7 +134,7 @@ void AudiblizerTestHarness::PrepareForDestruction()
     initialized = false;
 }
 
-bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, double adversarialTestingAudioPlayrateFactorArg)
+bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, double adversarialTestingAudioPlayrateFactorArg, uint32_t adversarialTestingAudioChunkCacheSizeArg)
 {
     std::lock_guard<std::mutex> lock(mutex);
     
@@ -148,6 +150,8 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     
     videoSegments = videoSegmentsArg;
     adversarialTestingAudioPlayrateFactor = adversarialTestingAudioPlayrateFactorArg > 0 ? adversarialTestingAudioPlayrateFactorArg : -adversarialTestingAudioPlayrateFactorArg;
+    adversarialTestingAudioChunkCacheSize = adversarialTestingAudioChunkCacheSizeArg;
+    adversarialTestingAudioChunkCacheAccum = 0;
     firstCallToPumpVideoFrame = false;
     audioPlaybackDurationActual = std::chrono::duration<double>::zero();
     audioPlaybackDurationIdeal = 0;
@@ -274,8 +278,6 @@ void AudiblizerTestHarness::AudioChunkCompleted(const AudioChunkCompletedVector 
         return;
     }
     
-    audioChunkIter += (uint32_t)audioChunksCompleted.size();
-    
     if(!firstCallToAudioChunkCompleted)
     {
         lastCallToAudioChunkCompleted = std::chrono::high_resolution_clock::now();
@@ -294,7 +296,14 @@ void AudiblizerTestHarness::AudioChunkCompleted(const AudioChunkCompletedVector 
         lastCallToAudioChunkCompleted = now;
     }
     
-    PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer, (int32_t)audioChunksCompleted.size());
+    adversarialTestingAudioChunkCacheAccum += (int32_t)audioChunksCompleted.size();
+    
+    if(adversarialTestingAudioChunkCacheAccum >= adversarialTestingAudioChunkCacheSize)
+    {
+        PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer, adversarialTestingAudioChunkCacheAccum);
+        audioChunkIter += adversarialTestingAudioChunkCacheAccum;
+        adversarialTestingAudioChunkCacheAccum = 0;
+    }
     
     // NOTE: In a scheme where the audio chunk was both dynamically allocated and to be queued on
     //       the Audiblizer only once, we would here dispose of the audio memory here
@@ -320,6 +329,7 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
     std::chrono::duration<float> deltaFloatingPointSeconds = now - lastCallToPumpVideoFrame;
     std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
+    uint64_t numActionablePumps = numPumps; // num pumps that we are actually going to act upon within this call
     OutputData outputData;
     
     switch(sender)
@@ -330,7 +340,8 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             
             if(avEqualizer > 0)
             {
-                videoFrameIter += numPumps;
+                numActionablePumps = numPumps; // we act on the full number of pumps
+                videoFrameIter += numActionablePumps;
             }
             else
             {
@@ -367,12 +378,15 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             //          b) audio is erroneously playing back at a rate *faster* than it should, which still satisfies
             //             the case here--that audio is playing back faster than video
             //       Both of the above cases are handled by this 'avEqualizer < 0' clause
+            // -----------------------------------------------------------------------------------------------
             if(avEqualizer < 0)
             {
                 // if audio is taking over the timing scheme, then consume all of the ticks that audio has entered
                 // into the system and then reset the video clock so that video is the one that drives playback once more
                 // (because the video timer is much smoother than the audio dequeueing scheme)
-                videoFrameIter += abs(avEqualizer);
+                // -----------------------------------------------------------------------------------------------
+                numActionablePumps = abs(avEqualizer); // we only act on the remainder of pumps
+                videoFrameIter += numActionablePumps;
                 avEqualizer = 0;
                 videoTimerDelegate->RefreshLastPing();
             }
@@ -442,6 +456,7 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     outputData.pumpVideoFrameSender = sender;
     outputData.avEqualizer = avEqualizer;
     outputData.audioChunkIter = audioChunkIter;
+    outputData.adversarialTestingAudioChunkCacheAccum = adversarialTestingAudioChunkCacheAccum;
     outputData.videoFrameIter = videoFrameIter;
     outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
     outputData.totalFloatingPointSeconds = totalFloatingPointSeconds;
@@ -452,7 +467,7 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     
     lastCallToPumpVideoFrame = now;
     cumulativeDelta += deltaFloatingPointSeconds;
-    numPumpsCompleted += numPumps;
+    numPumpsCompleted += numActionablePumps;
     
     // figure out max / min deltas
     // HOWEVER! do not report max / min deltas for first or last frames
@@ -664,8 +679,11 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
             audiblizerTestHarness->lastVideoFrameIter = outputData.videoFrameIter;
         
             // see if there was any av drift
+            // NOTE: to keep things clean and sane, we add 'adversarialTestingAudioChunkCacheAccum'
+            //       to the mix, so that when testing w/ cached audio pumps we do not erroneously
+            //       report drift
             // ---------------------------------------------------------------
-            if(abs(outputData.audioChunkIter - outputData.videoFrameIter) > 1)
+            if(abs((outputData.audioChunkIter + outputData.adversarialTestingAudioChunkCacheAccum) - outputData.videoFrameIter) > 1)
             {
                 audiblizerTestHarness->avDrift = true;
                 audiblizerTestHarness->avDriftNumFrames++;
@@ -678,13 +696,29 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
                 drift = true;
             }
             
-            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f",
-                   outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
-                   outputData.avEqualizer,
-                   outputData.audioChunkIter, outputData.videoFrameIter,
-                   vfHiccup ? "*" : " ",
-                   outputData.deltaFloatingPointSeconds.count(),
-                   outputData.totalFloatingPointSeconds.count());
+            if(audiblizerTestHarness->adversarialTestingAudioChunkCacheSize == 1)
+            {
+                printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f",
+                       outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
+                       outputData.avEqualizer,
+                       outputData.audioChunkIter,
+                       outputData.videoFrameIter,
+                       vfHiccup ? "*" : " ",
+                       outputData.deltaFloatingPointSeconds.count(),
+                       outputData.totalFloatingPointSeconds.count());
+            }
+            else
+            {
+                printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld+%d   VFI:%06lld%s  delta sec:%f   total sec:%f",
+                       outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
+                       outputData.avEqualizer,
+                       outputData.audioChunkIter,
+                       outputData.adversarialTestingAudioChunkCacheAccum,
+                       outputData.videoFrameIter,
+                       vfHiccup ? "*" : " ",
+                       outputData.deltaFloatingPointSeconds.count(),
+                       outputData.totalFloatingPointSeconds.count());
+            }
             
             if(drift)
             {
