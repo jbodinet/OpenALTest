@@ -238,8 +238,18 @@ bool AudiblizerTestHarness::StopTest()
     
     // report average delta and max delta
     printf("*** TestStopped ***\n");
-    printf("Adversarial AudioPlayrateFactor:%f\n", adversarialTestingAudioPlayrateFactor);
-    printf("Actual AudioPlayrateFactor:%f\n", audioPlayrateFactor);
+    
+    if(adversarialTestingAudioPlayrateFactor != 1.0)
+    {
+        printf("Adversarial AudioPlayrateFactor:%f\n", adversarialTestingAudioPlayrateFactor);
+        printf("Actual AudioPlayrateFactor:%f\n", audioPlayrateFactor);
+    }
+    
+    if(adversarialTestingAudioChunkCacheSize != 1)
+    {
+        printf("Adversarial AudioChunkCacheSize%d\n", adversarialTestingAudioChunkCacheSize);
+    }
+    
     printf("VideoTimerPeriod:%f\n", videoTimerDelegate->TimerPeriod());
     printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
     if(videoFrameHiccup)
@@ -709,7 +719,7 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
             }
             else
             {
-                printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld+%d   VFI:%06lld%s  delta sec:%f   total sec:%f",
+                printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld+%02d   VFI:%06lld%s  delta sec:%f   total sec:%f",
                        outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
                        outputData.avEqualizer,
                        outputData.audioChunkIter,
