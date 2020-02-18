@@ -41,6 +41,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioIsSilence(true),
     audioDurationSeconds(5.0),
     audioPlayrateFactor(1.0),
+    adversarialTestingAudioPlayrateFactor(1.0),
     maxQueuedAudioDurationSeconds(4.0),
     dataOutputThread(nullptr),
     dataOutputThreadRunning(false),
@@ -131,7 +132,7 @@ void AudiblizerTestHarness::PrepareForDestruction()
     initialized = false;
 }
 
-bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, double audioPlayrateFactorArg)
+bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, double adversarialTestingAudioPlayrateFactorArg)
 {
     std::lock_guard<std::mutex> lock(mutex);
     
@@ -146,8 +147,11 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     }
     
     videoSegments = videoSegmentsArg;
-    audioPlayrateFactor = audioPlayrateFactorArg > 0 ? audioPlayrateFactorArg : -audioPlayrateFactorArg;
+    adversarialTestingAudioPlayrateFactor = adversarialTestingAudioPlayrateFactorArg > 0 ? adversarialTestingAudioPlayrateFactorArg : -adversarialTestingAudioPlayrateFactorArg;
     firstCallToPumpVideoFrame = false;
+    audioPlaybackDurationActual = std::chrono::duration<double>::zero();
+    audioPlaybackDurationIdeal = 0;
+    firstCallToAudioChunkCompleted = false;
     maxDelta = std::chrono::duration<float>::zero();
     minDelta = std::chrono::duration<float>(10000.0);
     cumulativeDelta = std::chrono::duration<float>::zero();
@@ -229,8 +233,10 @@ bool AudiblizerTestHarness::StopTest()
     }
     
     // report average delta and max delta
-    printf("***TestStopped***\n");
-    printf("AudioPlayrateFactor:%f\n", audioPlayrateFactor);
+    printf("*** TestStopped ***\n");
+    printf("Adversarial AudioPlayrateFactor:%f\n", adversarialTestingAudioPlayrateFactor);
+    printf("Actual AudioPlayrateFactor:%f\n", audioPlayrateFactor);
+    printf("VideoTimerPeriod:%f\n", videoTimerDelegate->TimerPeriod());
     printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
     if(videoFrameHiccup)
     {
@@ -269,6 +275,25 @@ void AudiblizerTestHarness::AudioChunkCompleted(const AudioChunkCompletedVector 
     }
     
     audioChunkIter += (uint32_t)audioChunksCompleted.size();
+    
+    if(!firstCallToAudioChunkCompleted)
+    {
+        lastCallToAudioChunkCompleted = std::chrono::high_resolution_clock::now();
+        firstCallToAudioChunkCompleted = true;
+    }
+    else
+    {
+        std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+        audioPlaybackDurationActual += (now - lastCallToAudioChunkCompleted);
+        
+        for(uint32_t i = 0; i < audioChunksCompleted.size(); i++)
+        {
+            audioPlaybackDurationIdeal += audioChunksCompleted[i].duration;
+        }
+        
+        lastCallToAudioChunkCompleted = now;
+    }
+    
     PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer, (int32_t)audioChunksCompleted.size());
     
     // NOTE: In a scheme where the audio chunk was both dynamically allocated and to be queued on
@@ -326,12 +351,22 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             //
             // 2) audio CANNOT be unqueued in single buffer units (as we see w/ Windows unqueueing audio buffers
             //    that are sized to match frames of 1001/60000 video), and so we must allow the video to run on
-            //    ahead of the audio dequeueing, and then ***gracefully*** true up when audio can be dequeued
+            //    ahead of the audio dequeueing, and then ***gracefully*** true up when audio can be dequeued.
+            //    However, additionally, once we dequeue the multi-chunks of audio, we can still find out that:
+            //      a) video is running slightly faster than audio
+            //
+            //      b) audio is running slightly faster than video
             // -----------------------------------------------------------------------------------------------
             
             avEqualizer -= numPumps;
             
-            // if avEqualizer < 0, then audio has taken over the timing scheme, which we do NOT want
+            // if avEqualizer < 0, then audio has taken over the timing scheme, which we do NOT want.
+            // NOTE: audio can take over the timing scheme in one of two ways:
+            //          a) audio can be playing back at roughly the expected rate, yet it is playing slight faster
+            //             than video
+            //          b) audio is erroneously playing back at a rate *faster* than it should, which still satisfies
+            //             the case here--that audio is playing back faster than video
+            //       Both of the above cases are handled by this 'avEqualizer < 0' clause
             if(avEqualizer < 0)
             {
                 // if audio is taking over the timing scheme, then consume all of the ticks that audio has entered
@@ -341,14 +376,29 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
                 avEqualizer = 0;
                 videoTimerDelegate->RefreshLastPing();
             }
-            // if it is still the case that 'avEqualizer > 1' ***after*** we just adjusted
-            // avEqualizer via 'avEqualizer -= numPumps', then we here assume
-            // that audio is running slighty slower than the video. We assume this as,
+            // if it is still the case that avEqualizer > 0, then we here assume
+            // that audio is running slighty *slower* than the video. We assume this as,
             // even if the audiblizer dequeues in multiple chunks, an audio dequeue should return
-            // avEqualizer to '0' (though we allow a value of '1' for wiggle room)
-            else if(avEqualizer > 1)
+            // avEqualizer to '0'
+            else if(avEqualizer > 0)
             {
-// #error - how to handle this situation???
+                // we alter the audio playrate factor to represent what is going on with audio
+                audioPlayrateFactor = audioPlaybackDurationActual.count() / audioPlaybackDurationIdeal;
+                
+                // HOWEVER!!! if we are adversarially (and, thus, artificially) testing the handling of
+                // improperly-playing audio, then the audioPlayrate should still be calculated to be 1.0, above
+                // (as we are actually playing the audio at an expected rate, just not what is expected
+                // as compared to the video frame rate -- thus it is adversarial). In this case we need to
+                // set audioPlayrateFactor per how we are futzing with the audio
+                if(adversarialTestingAudioPlayrateFactor != 1.0)
+                {
+                    audioPlayrateFactor = adversarialTestingAudioPlayrateFactor;
+                }
+                
+                // reset this value
+                videoTimerDelegate->SetTimerPeriod(videoTimerDelegate->TimerPeriod() * audioPlayrateFactor);
+                videoTimerDelegate->RefreshLastPing();
+                
                 goto Exit;
             }
             else
@@ -488,7 +538,7 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
             // for *** test purposes only *** we allow for the value of audioFramesPerVideoFrame to
             // be scaled by 'audioPlayrateFactor', which allows us to mimic a system that plays
             // audio either too fast or too slow as compared to the explicit audio sample rate
-            audioFramesPerVideoFrame *= audiblizerTestHarness->audioPlayrateFactor;
+            audioFramesPerVideoFrame *= audiblizerTestHarness->adversarialTestingAudioPlayrateFactor;
             
             // derive how much audio that we will here be queueing from the CURRENT video segment
             uint32_t currentChunkMilliseconds = queueableAudioDurationMilliseconds;
@@ -595,6 +645,8 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
         
         if(!queueIsEmpty && outputData.videoFrameIter <= audiblizerTestHarness->videoSegmentsTotalNumFrames)
         {
+            bool drift = false;
+            
             // handle info regarding last VFI
             // ---------------------------------------------------------------
             if(audiblizerTestHarness->lastVideoFrameIter != 0)
@@ -623,16 +675,25 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
                     audiblizerTestHarness->maxAVDrift = (uint32_t) abs(outputData.audioChunkIter - outputData.videoFrameIter);
                 }
                 
-                printf("*** DRIFT ***  ");
+                drift = true;
             }
             
-            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f\n",
+            printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f",
                    outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
                    outputData.avEqualizer,
                    outputData.audioChunkIter, outputData.videoFrameIter,
                    vfHiccup ? "*" : " ",
                    outputData.deltaFloatingPointSeconds.count(),
                    outputData.totalFloatingPointSeconds.count());
+            
+            if(drift)
+            {
+                printf("   *** DRIFT ***\n");
+            }
+            else
+            {
+                printf("\n");
+            }
         }
         else
         {

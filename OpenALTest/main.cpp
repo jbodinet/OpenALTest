@@ -41,7 +41,7 @@ int main(int argc, const char * argv[])
     videoSegments.push_back(videoParameters);
     
     // potentially adversarial testing parameters
-    audioPlayrateFactor = 1.02;
+    audioPlayrateFactor = 1.0;
     
     // start test
     // ---------------------------------------

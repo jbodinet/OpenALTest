@@ -41,7 +41,7 @@ public:
     };
     
     typedef std::vector<VideoParameters> VideoSegments;
-    bool StartTest(const VideoSegments &videoSegments, double audioPlayrateFactor = 1.0);
+    bool StartTest(const VideoSegments &videoSegments, double adversarialTestingAudioPlayrateFactor = 1.0);
     bool StopTest();
     void WaitOnTestCompletion();
     
@@ -76,9 +76,11 @@ private:
     bool      audioIsStereo;
     bool      audioIsSilence;
     double    audioDurationSeconds;
-    double    audioPlayrateFactor;
+    double    audioPlayrateFactor; // the actual factor of 'ideal audio playrate / actual audio playrate'
     const double maxQueuedAudioDurationSeconds;
     static const Audiblizer::AudioFormat audioFormat;
+    
+    double    adversarialTestingAudioPlayrateFactor; // a way to adversarially test a/v sync by either making audio play fast or play slow
     
     std::mutex videoPumpMutex;
     uint64_t audioChunkIter;
@@ -102,6 +104,11 @@ private:
     bool                         avDrift;
     uint32_t                     avDriftNumFrames; // how many video frames reported drift from the audio
     uint32_t                     maxAVDrift;
+    
+    std::chrono::duration<double> audioPlaybackDurationActual;
+    double                        audioPlaybackDurationIdeal;
+    std::chrono::high_resolution_clock::time_point lastCallToAudioChunkCompleted;
+    bool                                           firstCallToAudioChunkCompleted;
     
     bool initialized;
     
