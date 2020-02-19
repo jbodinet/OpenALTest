@@ -38,7 +38,7 @@ int main(int argc, const char * argv[])
     // 2 seconds of 30fps
     videoParameters.sampleDuration = 1001;
     videoParameters.timeScale = 30000;
-    videoParameters.numVideoFrames = 1800;
+    videoParameters.numVideoFrames = 30 * 60 * 1;
     videoSegments.push_back(videoParameters);
     
     // potentially adversarial testing parameters
