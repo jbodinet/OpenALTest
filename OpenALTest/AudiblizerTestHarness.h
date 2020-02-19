@@ -101,13 +101,6 @@ private:
     std::chrono::high_resolution_clock::time_point playbackStart;
     bool firstCallToPumpVideoFrame;
     
-    
-    
-    
-//    printf("VideoTimerPeriod:%f\n", videoTimerDelegate->TimerPeriod());
-//    printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
-//    
-    
     class VideoSegmentOutputData
     {
     public:

@@ -406,6 +406,7 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     std::chrono::duration<float> totalFloatingPointSeconds = now - playbackStart;
     uint64_t numActionablePumps = numPumps; // num pumps that we are actually going to act upon within this call
     OutputData outputData;
+    bool adjustedFramerate = false;
     
     switch(sender)
     {
@@ -500,7 +501,7 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     // If playback is multiframerate, then adjust the video timer period as necessary
     if(videoPlaymap.size() > 1)
     {
-        // find the segment for the current videoFrameIter
+        // find the segment for the NEXT videoFrameIter
         VideoPlaymapIterator iter = videoPlaymap.lower_bound(videoFrameIter);
         if(iter == videoPlaymap.end())
         {
@@ -537,8 +538,8 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             // keep track of on which video frame the adjustment took place
             frameRateAdjustedOnFrameIndex = iter->first;
             
-            // tick the iter for the VideoSegmentOutputData
-            videoSegmentOutputDataIter++;
+            // note that we adjusted frame rate
+            adjustedFramerate = true;
         }
     }
     
@@ -609,9 +610,22 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
         }
     }
     
-    // keep track of the rolling timer period
+    // keep track of the rolling timer period (but only if we did NOT
+    // adjust frame rate, as if we adjusted frame rate, then we ***already***
+    // updated the timer to represent the frame rate, and so we would
+    // erroneously be setting the timer here
     // -----------------------------------------------------------------
-    videoSegmentOutputData[videoSegmentOutputDataIter].timerPeriod = videoTimerDelegate->TimerPeriod();
+    if(!adjustedFramerate)
+    {
+        videoSegmentOutputData[videoSegmentOutputDataIter].timerPeriod = videoTimerDelegate->TimerPeriod();
+    }
+    
+    // ***AFTER*** we have input all of the data for the current frame, if we found that we altered
+    // the frame rate on this call, tick the iter for the VideoSegmentOutputData
+    if(adjustedFramerate)
+    {
+        videoSegmentOutputDataIter++;
+    }
     
 Exit:
     return;
