@@ -23,6 +23,7 @@ int main(int argc, const char * argv[])
     AudiblizerTestHarness::VideoParameters videoParameters;
     double audioPlayrateFactor;
     uint32_t audioChunkCacheSize;
+    uint32_t numPressureThreads;
     
     // initialize test harness
     // ---------------------------------------
@@ -45,10 +46,11 @@ int main(int argc, const char * argv[])
     // ---------------------------------------
     audioPlayrateFactor = 1.0;
     audioChunkCacheSize = 1;
+    numPressureThreads = 0;
     
     // start test
     // ---------------------------------------
-    if(!audiblizerTestHarness->StartTest(videoSegments, audioPlayrateFactor, audioChunkCacheSize))
+    if(!audiblizerTestHarness->StartTest(videoSegments, audioPlayrateFactor, audioChunkCacheSize, numPressureThreads))
     {
         printf("AudiblizerTestHarness StartTest Error!!!\n");
         goto Exit;

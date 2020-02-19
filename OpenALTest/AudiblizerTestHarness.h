@@ -41,7 +41,7 @@ public:
     };
     
     typedef std::vector<VideoParameters> VideoSegments;
-    bool StartTest(const VideoSegments &videoSegments, double adversarialTestingAudioPlayrateFactor = 1.0, uint32_t adversarialTestingAudioChunkCacheSize = 1);
+    bool StartTest(const VideoSegments &videoSegments, double adversarialTestingAudioPlayrateFactor = 1.0, uint32_t adversarialTestingAudioChunkCacheSize = 1, uint32_t numAdversarialPressureTheads = 0);
     bool StopTest();
     void WaitOnTestCompletion();
     
@@ -79,11 +79,6 @@ private:
     double    audioPlayrateFactor; // the actual factor of 'ideal audio playrate / actual audio playrate'
     const double maxQueuedAudioDurationSeconds;
     static const Audiblizer::AudioFormat audioFormat;
-    
-    double    adversarialTestingAudioPlayrateFactor; // a way to adversarially test a/v sync by either making audio play fast or play slow
-    uint32_t  adversarialTestingAudioChunkCacheSize;
-    uint32_t  adversarialTestingAudioChunkCacheAccum; // we don't really need to cache the audio chunks, just collect the 'pings' and then
-                                                        // broadcast them all at once
     
     std::mutex videoPumpMutex;
     uint64_t audioChunkIter;
@@ -135,6 +130,25 @@ private:
         std::chrono::duration<float> totalFloatingPointSeconds;
     };
     
+    // --- Pressure Threads ---
+    class AdversarialPressureThread
+    {
+    public:
+        AdversarialPressureThread();
+        static std::shared_ptr<AdversarialPressureThread> CreateShared();
+        
+        void Kill();
+        
+    protected:
+        bool Start();
+    
+    private:
+        std::mutex threadMutex;
+        std::thread *thread;
+        bool threadRunning;
+        static void AdversarialPressureThreadProc(AdversarialPressureThread *adversarialPressureThread);
+    };
+    
     typedef std::queue<OutputData> OutputDataQueue;
     
     OutputDataQueue outputDataQueue;
@@ -144,6 +158,12 @@ private:
     bool         dataOutputThreadRunning;
     
     static void DataOutputThreadProc(AudiblizerTestHarness *audiblizerTestHarness);
+    
+    // --- Adversarial Testing Components ---
+    double    adversarialTestingAudioPlayrateFactor; // a way to adversarially test a/v sync by either making audio play fast or play slow
+    uint32_t  adversarialTestingAudioChunkCacheSize;
+    uint32_t  adversarialTestingAudioChunkCacheAccum; // we don't really need to cache the audio chunks, just collect the 'pings' and then
+    std::vector<std::shared_ptr<AdversarialPressureThread>> adversarialPressureThreads;
     
     // --- Static Utility Functions ---
     static void* GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, bool silence, size_t *bufferSizeOut);

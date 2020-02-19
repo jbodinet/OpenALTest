@@ -7,6 +7,7 @@
 //
 
 #include "AudiblizerTestHarness.h"
+#include <cmath>
 
 const Audiblizer::AudioFormat AudiblizerTestHarness::audioFormat = Audiblizer::AudioFormat_Stereo16;
 
@@ -50,7 +51,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     initialized(false)
 {
     
-    
+
 }
 
 AudiblizerTestHarness::~AudiblizerTestHarness()
@@ -134,7 +135,7 @@ void AudiblizerTestHarness::PrepareForDestruction()
     initialized = false;
 }
 
-bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, double adversarialTestingAudioPlayrateFactorArg, uint32_t adversarialTestingAudioChunkCacheSizeArg)
+bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, double adversarialTestingAudioPlayrateFactorArg, uint32_t adversarialTestingAudioChunkCacheSizeArg, uint32_t numAdversarialPressureTheads)
 {
     std::lock_guard<std::mutex> lock(mutex);
     
@@ -180,6 +181,16 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     for(uint32_t i = 0; i < videoSegments.size(); i++)
     {
         videoSegmentsTotalNumFrames += videoSegments[i].numVideoFrames;
+    }
+    
+    // start up the adversarial pressure threads (if there are any...)
+    if(numAdversarialPressureTheads != 0)
+    {
+        for(uint32_t i = 0; i < numAdversarialPressureTheads; i++)
+        {
+            std::shared_ptr<AdversarialPressureThread> adversarialPressureThread = AdversarialPressureThread::CreateShared();
+            adversarialPressureThreads.push_back(adversarialPressureThread);
+        }
     }
     
     // start up the high precision timer
@@ -236,7 +247,17 @@ bool AudiblizerTestHarness::StopTest()
         dataOutputThread = nullptr;
     }
     
-    // report average delta and max delta
+    // stop the adversarial pressure threads
+    // -------------------------------------
+    for(uint32_t i = 0; i < adversarialPressureThreads.size(); i++)
+    {
+        adversarialPressureThreads[i]->Kill();
+    }
+    
+    adversarialPressureThreads.clear();
+    
+    // Report findings
+    // -------------------------------------
     printf("*** TestStopped ***\n");
     
     if(adversarialTestingAudioPlayrateFactor != 1.0)
@@ -796,5 +817,79 @@ void AudiblizerTestHarness::FreeAudioSample(void* data)
     {
         free(data);
         data = nullptr;
+    }
+}
+
+AudiblizerTestHarness::AdversarialPressureThread::AdversarialPressureThread() :
+    thread(nullptr),
+    threadRunning(false)
+{
+    
+}
+
+std::shared_ptr<AudiblizerTestHarness::AdversarialPressureThread> AudiblizerTestHarness::AdversarialPressureThread::CreateShared()
+{
+    std::shared_ptr<AdversarialPressureThread> adversarialPressureThread = std::make_shared<AdversarialPressureThread>();
+    if(adversarialPressureThread == nullptr)
+    {
+        goto Exit;
+    }
+    
+    if(!adversarialPressureThread->Start())
+    {
+        adversarialPressureThread = nullptr;
+        goto Exit;
+    }
+    
+Exit:
+    return adversarialPressureThread;
+}
+
+bool AudiblizerTestHarness::AdversarialPressureThread::Start()
+{
+    std::lock_guard<std::mutex> lock(threadMutex);
+    
+    if(thread != nullptr)
+    {
+        return false;
+    }
+    
+    threadRunning = true;
+    thread = new (std::nothrow) std::thread(AdversarialPressureThreadProc, this);
+    if(thread == nullptr)
+    {
+        threadRunning = false;
+        return false;
+    }
+    
+    return true;
+}
+
+void AudiblizerTestHarness::AdversarialPressureThread::Kill()
+{
+    std::lock_guard<std::mutex> lock(threadMutex);
+    
+    if(thread == nullptr)
+    {
+        return;
+    }
+    
+    threadRunning = false;
+    thread->join();
+    
+    delete thread;
+    thread = nullptr;
+}
+
+void AudiblizerTestHarness::AdversarialPressureThread::AdversarialPressureThreadProc(AdversarialPressureThread *adversarialPressureThread)
+{
+    double value = 1.0;
+    
+    while(adversarialPressureThread->threadRunning)
+    {
+        value = ((((value + value) * value) - value) / value);
+        value = value > 0 ? value : -value;
+        value = sqrt(value);
+        value = ((uint64_t)value) % 100;
     }
 }

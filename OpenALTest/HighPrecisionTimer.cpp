@@ -9,6 +9,7 @@
 #include "HighPrecisionTimer.h"
 
 #include <pthread.h>
+#include <sched.h>
 
 HighPrecisionTimer::HighPrecisionTimer() :
     timerThread(nullptr),
@@ -45,10 +46,11 @@ bool HighPrecisionTimer::Start()
         return false;
     }
     
-    // set the timer thread to have top priority
+    // set the timer thread to use a FIFO policy with top priority
+    // ----------------------------------------------------------------------------------
     sched_param sch_params;
-    sch_params.sched_priority = 1;
-    int policy = SCHED_RR;
+    int policy = SCHED_FIFO;
+    sch_params.sched_priority = sched_get_priority_max(policy);
     int pErr = pthread_setschedparam(timerThread->native_handle(), policy, &sch_params);
     if(pErr != 0)
     {
