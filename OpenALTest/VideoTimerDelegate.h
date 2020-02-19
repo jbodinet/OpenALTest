@@ -26,22 +26,24 @@ public:
         virtual void VideoTimerPing() = 0;
     };
     
-    VideoTimerDelegate() { timerPingListener = nullptr; timerPeriod = 1001.0 / 30000.0; } 
+    VideoTimerDelegate() { timerPingListener = nullptr; timerPeriod = 1001.0 / 30000.0; audioPlayrateFactor = 1.0; }
     virtual ~VideoTimerDelegate() { }
     
     virtual void SetTimerPingListener(std::shared_ptr<TimerPingListener> listener) { timerPingListener = listener; }
     virtual void PrepareForDestruction() { timerPingListener = nullptr; }
     
-    virtual void SetTimerPeriod(double period) { timerPeriod = period; }
+    virtual void SetTimerPeriod(double period) { if(period > 0) timerPeriod = period; }
+    virtual void SetAudioPlayrateFactor(double factor) { if(factor > 0) audioPlayrateFactor = factor; }
     
     // HighPrecisionTimer::Delegate Interface
     // ------------------------------------------------------------------
     virtual void TimerPing() { if(timerPingListener != nullptr) timerPingListener->VideoTimerPing(); }
-    virtual double TimerPeriod() { return timerPeriod; }
+    virtual double TimerPeriod() { return timerPeriod * audioPlayrateFactor; }
     virtual bool FireOnce() { return false; }
     
 private:
     double timerPeriod;
+    double audioPlayrateFactor;
     std::shared_ptr<TimerPingListener> timerPingListener;
 };
 

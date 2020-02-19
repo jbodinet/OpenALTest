@@ -196,8 +196,9 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
         videoSegmentsTotalNumFrames += videoSegments[i].numVideoFrames;
     }
     
-    // start the video timer off using the timing values for the first segment of video
+    // start the video timer off using the timing values for the first segment of video, also resetting the audioPlayrateFactor
     videoTimerDelegate->SetTimerPeriod(videoPlaymap.begin()->second.sampleDuration / (double) videoPlaymap.begin()->second.timeScale);
+    videoTimerDelegate->SetAudioPlayrateFactor(1.0);
     
     // underscore that we used the frame rate of the first video segment
     frameRateAdjustedOnFrameIndex = videoPlaymap.begin()->first;
@@ -471,8 +472,8 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
                     audioPlayrateFactor = adversarialTestingAudioPlayrateFactor;
                 }
                 
-                // reset this value
-                videoTimerDelegate->SetTimerPeriod(videoTimerDelegate->TimerPeriod() * audioPlayrateFactor);
+                // update the audioPlayrateFactor in the Video Timer and refresh the timer ping
+                videoTimerDelegate->SetAudioPlayrateFactor(audioPlayrateFactor);
                 videoTimerDelegate->RefreshLastPing();
                 
                 goto Exit;
