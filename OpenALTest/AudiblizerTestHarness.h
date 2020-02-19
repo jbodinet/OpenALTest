@@ -101,12 +101,39 @@ private:
     std::chrono::high_resolution_clock::time_point playbackStart;
     bool firstCallToPumpVideoFrame;
     
-    std::chrono::duration<float> maxDelta;
-    uint64_t                     maxDeltaVideoFrameIter;
-    std::chrono::duration<float> minDelta;
-    uint64_t                     minDeltaVideoFrameIter;
-    std::chrono::duration<float> cumulativeDelta;
-    uint64_t                     numPumpsCompleted;
+    
+    
+    
+//    printf("VideoTimerPeriod:%f\n", videoTimerDelegate->TimerPeriod());
+//    printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
+//    
+    
+    class VideoSegmentOutputData
+    {
+    public:
+        VideoSegmentOutputData()
+        {
+            maxDelta = std::chrono::duration<float>::zero();
+            maxDeltaVideoFrameIter = 0;
+            minDelta = std::chrono::duration<float>(10000.0);
+            minDeltaVideoFrameIter = 0;
+            cumulativeDelta = std::chrono::duration<float>::zero();
+            numPumpsCompleted = 0;
+            timerPeriod = 0;
+        }
+        
+        std::chrono::duration<float> maxDelta;
+        uint64_t                     maxDeltaVideoFrameIter;
+        std::chrono::duration<float> minDelta;
+        uint64_t                     minDeltaVideoFrameIter;
+        std::chrono::duration<float> cumulativeDelta;
+        uint64_t                     numPumpsCompleted;
+        double                       timerPeriod;
+    };
+    
+    std::vector<VideoSegmentOutputData> videoSegmentOutputData;
+    uint32_t                            videoSegmentOutputDataIter;
+    
     bool                         videoFrameHiccup;
     uint32_t                     maxVideoFrameHiccup;
     bool                         avDrift;

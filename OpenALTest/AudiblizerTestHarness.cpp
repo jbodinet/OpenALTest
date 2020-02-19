@@ -20,15 +20,11 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     firstCallToPumpVideoFrame(false),
     audiblizer(nullptr),
     highPrecisionTimer(nullptr),
-    maxDelta(std::chrono::duration<float>::zero()),
-    minDelta(10000.0),
-    cumulativeDelta(std::chrono::duration<float>::zero()),
     audioChunkIter(0),
     videoFrameIter(0),
     lastVideoFrameIter(0),
     videoTimerIter(0),
     avEqualizer(0),
-    numPumpsCompleted(0),
     videoFrameHiccup(false),
     maxVideoFrameHiccup(0),
     avDrift(false),
@@ -155,6 +151,7 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     }
     
     videoPlaymap.clear();
+    videoSegmentOutputData.clear();
     videoSegments = videoSegmentsArg;
     adversarialTestingAudioPlayrateFactor = adversarialTestingAudioPlayrateFactorArg > 0 ? adversarialTestingAudioPlayrateFactorArg : -adversarialTestingAudioPlayrateFactorArg;
     adversarialTestingAudioChunkCacheSize = adversarialTestingAudioChunkCacheSizeArg;
@@ -163,10 +160,6 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     audioPlaybackDurationActual = std::chrono::duration<double>::zero();
     audioPlaybackDurationIdeal = 0;
     firstCallToAudioChunkCompleted = false;
-    maxDelta = std::chrono::duration<float>::zero();
-    minDelta = std::chrono::duration<float>(10000.0);
-    cumulativeDelta = std::chrono::duration<float>::zero();
-    numPumpsCompleted = 0;
     audioDataPtr = audioData;
     audioChunkIter = 0;
     videoFrameIter = 0;
@@ -180,6 +173,7 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     maxAVDrift = 0;
     videoSegmentsTotalNumFrames = 0;
     frameRateAdjustedOnFrameIndex = 0;
+    videoSegmentOutputDataIter = 0;
    
     // parse the video segments
     for(uint32_t i = 0; i < videoSegments.size(); i++)
@@ -194,6 +188,9 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
         
         // generate the total num frames in all the video segments
         videoSegmentsTotalNumFrames += videoSegments[i].numVideoFrames;
+        
+        // prepare a VideoSegmentsOutputData element for each segment
+        videoSegmentOutputData.push_back(VideoSegmentOutputData());
     }
     
     // start the video timer off using the timing values for the first segment of video, also resetting the audioPlayrateFactor
@@ -202,6 +199,9 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     
     // underscore that we used the frame rate of the first video segment
     frameRateAdjustedOnFrameIndex = videoPlaymap.begin()->first;
+    
+    // underscore that we are on the first video segment in the VideoSegmentsOutputData
+    videoSegmentOutputDataIter = 0;
     
     // start up the adversarial pressure threads (if there are any...)
     if(numAdversarialPressureTheads != 0)
@@ -303,8 +303,20 @@ bool AudiblizerTestHarness::StopTest()
         printf("Adversarial PressureThreads count:%zu\n", numAdversarialPressureThreads);
     }
     
-    printf("VideoTimerPeriod:%f\n", videoTimerDelegate->TimerPeriod());
-    printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", cumulativeDelta.count() / (double)numPumpsCompleted, maxDelta.count(), maxDeltaVideoFrameIter, minDelta.count(), minDeltaVideoFrameIter);
+    if(videoSegmentOutputDataIter == 0)
+    {
+        printf("VideoTimerPeriod:%f\n", videoSegmentOutputData[0].timerPeriod);
+        printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", videoSegmentOutputData[0].cumulativeDelta.count() / (double)videoSegmentOutputData[0].numPumpsCompleted, videoSegmentOutputData[0].maxDelta.count(), videoSegmentOutputData[0].maxDeltaVideoFrameIter, videoSegmentOutputData[0].minDelta.count(), videoSegmentOutputData[0].minDeltaVideoFrameIter);
+    }
+    else
+    {
+        for(uint32_t i = 0; i <= videoSegmentOutputDataIter; i++)
+        {
+            printf("VideoSegment:%d  VideoTimerPeriod:%f\n", i, videoSegmentOutputData[i].timerPeriod);
+            printf("VideoSegment:%d  Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", i, videoSegmentOutputData[i].cumulativeDelta.count() / (double)videoSegmentOutputData[i].numPumpsCompleted, videoSegmentOutputData[i].maxDelta.count(), videoSegmentOutputData[i].maxDeltaVideoFrameIter, videoSegmentOutputData[i].minDelta.count(), videoSegmentOutputData[i].minDeltaVideoFrameIter);
+        }
+    }
+        
     if(videoFrameHiccup)
     {
         printf("*** VIDEO FRAME HICCUPS OCCURRED!!! MAX HICCUP: %d VIDEO FRAMES ***", maxVideoFrameHiccup);
@@ -524,6 +536,9 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             
             // keep track of on which video frame the adjustment took place
             frameRateAdjustedOnFrameIndex = iter->first;
+            
+            // tick the iter for the VideoSegmentOutputData
+            videoSegmentOutputDataIter++;
         }
     }
     
@@ -571,8 +586,8 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     outputDataQueueMutex.unlock();
     
     lastCallToPumpVideoFrame = now;
-    cumulativeDelta += deltaFloatingPointSeconds;
-    numPumpsCompleted += numActionablePumps;
+    videoSegmentOutputData[videoSegmentOutputDataIter].cumulativeDelta += deltaFloatingPointSeconds;
+    videoSegmentOutputData[videoSegmentOutputDataIter].numPumpsCompleted += numActionablePumps;
     
     // figure out max / min deltas
     // HOWEVER! do not report max / min deltas for first or last frames
@@ -581,18 +596,22 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
        videoFrameIter != 1 &&
        videoFrameIter != videoSegmentsTotalNumFrames)
     {
-        if(deltaFloatingPointSeconds > maxDelta)
+        if(deltaFloatingPointSeconds > videoSegmentOutputData[videoSegmentOutputDataIter].maxDelta)
         {
-            maxDelta = deltaFloatingPointSeconds;
-            maxDeltaVideoFrameIter = videoFrameIter;
+            videoSegmentOutputData[videoSegmentOutputDataIter].maxDelta = deltaFloatingPointSeconds;
+            videoSegmentOutputData[videoSegmentOutputDataIter].maxDeltaVideoFrameIter = videoFrameIter;
         }
         
-        if(deltaFloatingPointSeconds < minDelta)
+        if(deltaFloatingPointSeconds < videoSegmentOutputData[videoSegmentOutputDataIter].minDelta)
         {
-            minDelta = deltaFloatingPointSeconds;
-            minDeltaVideoFrameIter = videoFrameIter;
+            videoSegmentOutputData[videoSegmentOutputDataIter].minDelta = deltaFloatingPointSeconds;
+            videoSegmentOutputData[videoSegmentOutputDataIter].minDeltaVideoFrameIter = videoFrameIter;
         }
     }
+    
+    // keep track of the rolling timer period
+    // -----------------------------------------------------------------
+    videoSegmentOutputData[videoSegmentOutputDataIter].timerPeriod = videoTimerDelegate->TimerPeriod();
     
 Exit:
     return;
