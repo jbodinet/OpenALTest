@@ -219,6 +219,8 @@ bool AudiblizerTestHarness::StopTest()
 {
     std::lock_guard<std::mutex> lock(mutex);
     
+    uint32_t numAdversarialPressureThreads = 0;
+    
     if(!initialized)
     {
         return false;
@@ -249,12 +251,17 @@ bool AudiblizerTestHarness::StopTest()
     
     // stop the adversarial pressure threads
     // -------------------------------------
-    for(uint32_t i = 0; i < adversarialPressureThreads.size(); i++)
+    if(!adversarialPressureThreads.empty())
     {
-        adversarialPressureThreads[i]->Kill();
+        numAdversarialPressureThreads = adversarialPressureThreads.size();
+        
+        for(uint32_t i = 0; i < adversarialPressureThreads.size(); i++)
+        {
+            adversarialPressureThreads[i]->Kill();
+        }
+        
+        adversarialPressureThreads.clear();
     }
-    
-    adversarialPressureThreads.clear();
     
     // Report findings
     // -------------------------------------
@@ -269,6 +276,11 @@ bool AudiblizerTestHarness::StopTest()
     if(adversarialTestingAudioChunkCacheSize != 1)
     {
         printf("Adversarial AudioChunkCacheSize%d\n", adversarialTestingAudioChunkCacheSize);
+    }
+    
+    if(numAdversarialPressureThreads != 0)
+    {
+        printf("Adversarial PressureThreads count:%d\n", numAdversarialPressureThreads);
     }
     
     printf("VideoTimerPeriod:%f\n", videoTimerDelegate->TimerPeriod());
