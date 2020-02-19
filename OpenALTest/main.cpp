@@ -42,7 +42,7 @@ int main(int argc, const char * argv[])
     videoParameters.numVideoFrames = 30 * 60 * 1;
     videoSegments.push_back(videoParameters);
     
-    // potentially adversarial testing parameters
+    // (potentially) adversarial testing parameters
     // ---------------------------------------
     audioPlayrateFactor = 1.0;
     audioChunkCacheSize = 1;

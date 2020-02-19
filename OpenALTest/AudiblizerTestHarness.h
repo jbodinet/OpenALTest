@@ -41,6 +41,7 @@ public:
     };
     
     typedef std::vector<VideoParameters> VideoSegments;
+   
     bool StartTest(const VideoSegments &videoSegments, double adversarialTestingAudioPlayrateFactor = 1.0, uint32_t adversarialTestingAudioChunkCacheSize = 1, uint32_t numAdversarialPressureTheads = 0);
     bool StopTest();
     void WaitOnTestCompletion();
@@ -59,6 +60,13 @@ public:
     void PumpVideoFrame(PumpVideoFrameSender sender, int32_t numPumps = 1); // stub! just outputs info
     
 private:
+    typedef uint64_t VideoPlaymapKey;
+    typedef VideoParameters VideoPlaymapValue;
+    typedef std::map<VideoPlaymapKey, VideoPlaymapValue> VideoPlaymap;
+    typedef std::pair<VideoPlaymapKey, VideoPlaymapValue> VideoPlaymapPair;
+    typedef VideoPlaymap::iterator VideoPlaymapIterator;
+    typedef std::pair<VideoPlaymapIterator, bool> VideoPlaymapInsertionPair;
+    
     std::mutex mutex;
     
     std::shared_ptr<Audiblizer> audiblizer;
@@ -67,6 +75,7 @@ private:
     
     VideoSegments videoSegments;
     uint32_t      videoSegmentsTotalNumFrames;
+    VideoPlaymap  videoPlaymap;
     uint8_t  *audioData;
     uint8_t  *audioDataPtr;
     size_t    audioDataSize;

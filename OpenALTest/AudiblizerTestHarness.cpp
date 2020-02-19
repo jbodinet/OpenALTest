@@ -149,6 +149,12 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
         return false;
     }
     
+    if(videoSegmentsArg.empty())
+    {
+        return false;
+    }
+    
+    videoPlaymap.clear();
     videoSegments = videoSegmentsArg;
     adversarialTestingAudioPlayrateFactor = adversarialTestingAudioPlayrateFactorArg > 0 ? adversarialTestingAudioPlayrateFactorArg : -adversarialTestingAudioPlayrateFactorArg;
     adversarialTestingAudioChunkCacheSize = adversarialTestingAudioChunkCacheSizeArg;
@@ -161,6 +167,7 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     minDelta = std::chrono::duration<float>(10000.0);
     cumulativeDelta = std::chrono::duration<float>::zero();
     numPumpsCompleted = 0;
+    audioDataPtr = audioData;
     audioChunkIter = 0;
     videoFrameIter = 0;
     lastVideoFrameIter = 0;
@@ -172,16 +179,24 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     avDriftNumFrames = 0;
     maxAVDrift = 0;
     videoSegmentsTotalNumFrames = 0;
-    
-    audioDataPtr = audioData;
    
-    videoTimerDelegate->SetTimerPeriod(!videoSegments.empty() ? (videoSegments[0].sampleDuration / (double) videoSegments[0].timeScale) : (1001.0 / 30000.0));
-    
-    // find the total num frames in the video segments
+    // parse the video segments
     for(uint32_t i = 0; i < videoSegments.size(); i++)
     {
+        // generate a video playmap using the video segments
+        // -------------------------------------------------------
+        
+        // insert the segment with the ***current value*** of videoSegmentsTotalNumFrames,
+        // which is the starting video frame-index of this segment (as we use the value
+        // ***before*** we add to it the numFrames for *this* segment)
+        videoPlaymap.insert(VideoPlaymapPair(videoSegmentsTotalNumFrames, videoSegments[i]));
+        
+        // generate the total num frames in all the video segments
         videoSegmentsTotalNumFrames += videoSegments[i].numVideoFrames;
     }
+    
+    // start the video timer off using the timing values for the first segment of video
+    videoTimerDelegate->SetTimerPeriod(videoPlaymap.begin()->second.sampleDuration / (double) videoPlaymap.begin()->second.timeScale);
     
     // start up the adversarial pressure threads (if there are any...)
     if(numAdversarialPressureTheads != 0)
@@ -219,7 +234,7 @@ bool AudiblizerTestHarness::StopTest()
 {
     std::lock_guard<std::mutex> lock(mutex);
     
-    uint32_t numAdversarialPressureThreads = 0;
+    size_t numAdversarialPressureThreads = 0;
     
     if(!initialized)
     {
@@ -280,7 +295,7 @@ bool AudiblizerTestHarness::StopTest()
     
     if(numAdversarialPressureThreads != 0)
     {
-        printf("Adversarial PressureThreads count:%d\n", numAdversarialPressureThreads);
+        printf("Adversarial PressureThreads count:%zu\n", numAdversarialPressureThreads);
     }
     
     printf("VideoTimerPeriod:%f\n", videoTimerDelegate->TimerPeriod());
