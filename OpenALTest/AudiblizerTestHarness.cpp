@@ -179,6 +179,7 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     avDriftNumFrames = 0;
     maxAVDrift = 0;
     videoSegmentsTotalNumFrames = 0;
+    frameRateAdjustedOnFrameIndex = 0;
    
     // parse the video segments
     for(uint32_t i = 0; i < videoSegments.size(); i++)
@@ -197,6 +198,9 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     
     // start the video timer off using the timing values for the first segment of video
     videoTimerDelegate->SetTimerPeriod(videoPlaymap.begin()->second.sampleDuration / (double) videoPlaymap.begin()->second.timeScale);
+    
+    // underscore that we used the frame rate of the first video segment
+    frameRateAdjustedOnFrameIndex = videoPlaymap.begin()->first;
     
     // start up the adversarial pressure threads (if there are any...)
     if(numAdversarialPressureTheads != 0)
@@ -477,6 +481,48 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             {
                 goto Exit;
             }
+        }
+    }
+    
+    // If playback is multiframerate, then adjust the video timer period as necessary
+    if(videoPlaymap.size() > 1)
+    {
+        // find the segment for the current videoFrameIter
+        VideoPlaymapIterator iter = videoPlaymap.lower_bound(videoFrameIter);
+        if(iter == videoPlaymap.end())
+        {
+            iter--;
+        }
+        
+        // advance to the next segment
+        // Note: lower_bound() does not do exactly what we want, nor does upper_bound.
+        //       We want an iterator to the value that meets the following criterias:
+        //          1) the returned iterator will point to the element whose key
+        //             is equal to or less than 'videoFrameIter'
+        //          AND
+        //          2) 'videoFrameIter' is strictly less than the key of the
+        //             element in the map that follows the chosen element
+        //
+        // Thus: if keys are {0, 900}, and we are given a value of 0, we return the first
+        //       element. If we are given 1, we return the first element. If we are given
+        //       900, we return the second element. If we are given 901, we return the
+        //       second element.
+        //
+        // The closest thing is to use lower_bound() and then decrement the iterator
+        // if its key is greater than the value that we used in the lower_bound() search
+        if(iter->first > videoFrameIter)
+        {
+            iter--;
+        }
+        
+        // if we should perform a new adjustment
+        if(frameRateAdjustedOnFrameIndex != iter->first)
+        {
+            // update the video timer period
+            videoTimerDelegate->SetTimerPeriod(iter->second.sampleDuration / (double) iter->second.timeScale);
+            
+            // keep track of on which video frame the adjustment took place
+            frameRateAdjustedOnFrameIndex = iter->first;
         }
     }
     

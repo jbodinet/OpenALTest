@@ -24,6 +24,7 @@ int main(int argc, const char * argv[])
     double audioPlayrateFactor;
     uint32_t audioChunkCacheSize;
     uint32_t numPressureThreads;
+    bool multiframerate = true;
     
     // initialize test harness
     // ---------------------------------------
@@ -39,8 +40,16 @@ int main(int argc, const char * argv[])
     // 2 seconds of 30fps
     videoParameters.sampleDuration = 1001;
     videoParameters.timeScale = 30000;
-    videoParameters.numVideoFrames = 30 * 60 * 1;
+    videoParameters.numVideoFrames = 30 * 5;
     videoSegments.push_back(videoParameters);
+    
+    if(multiframerate)
+    {
+        videoParameters.sampleDuration = 1001;
+        videoParameters.timeScale = 60000;
+        videoParameters.numVideoFrames = 60 * 5;
+        videoSegments.push_back(videoParameters);
+    }
     
     // (potentially) adversarial testing parameters
     // ---------------------------------------
