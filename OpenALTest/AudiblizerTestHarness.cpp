@@ -295,7 +295,7 @@ bool AudiblizerTestHarness::StopTest()
     
     if(adversarialTestingAudioChunkCacheSize != 1)
     {
-        printf("Adversarial AudioChunkCacheSize%d\n", adversarialTestingAudioChunkCacheSize);
+        printf("Adversarial AudioChunkCacheSize:%d\n", adversarialTestingAudioChunkCacheSize);
     }
     
     if(numAdversarialPressureThreads != 0)
