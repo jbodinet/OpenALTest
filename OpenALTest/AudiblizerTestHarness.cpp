@@ -33,10 +33,10 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     audioQueueingThread(nullptr),
     audioQueueingThreadRunning(false),
     audioQueueingThreadTerminated(false, false),
-    audioSampleRate(48000),
+    audioSampleRate(0),
     audioIsStereo(true),
     audioIsSilence(true),
-    audioDurationSeconds(5.0),
+    audioDurationSeconds(0.0),
     audioPlayrateFactor(1.0),
     adversarialTestingAudioPlayrateFactor(1.0),
     adversarialTestingAudioChunkCacheSize(1),
@@ -100,18 +100,104 @@ bool AudiblizerTestHarness::Initialize()
     highPrecisionTimer->AddDelegate(videoTimerDelegate);
     highPrecisionTimer->AddDelegate(audiblizer);
     
-    // Sample AudioData
-    // --------------------------------------------
-    FreeAudioSample(audioData);
-    audioData = (uint8_t*)GenerateAudioSample(audioSampleRate, audioDurationSeconds, audioIsStereo, audioIsSilence, &audioDataSize);
-    audioDataPtr = audioData;
-    audioDataTotalNumDatums = audioDataSize / sizeof(uint16_t);
-    audioDataTotalNumFrames = audioDataSize / Audiblizer::AudioFormatFrameByteLength(audioFormat);
-    
     initialized = true;
     
 Exit:
     return retVal;
+}
+
+bool AudiblizerTestHarness::LoadAudio(const char *filePath)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    
+    bool success = true;
+    
+    if(!initialized || filePath == nullptr)
+    {
+        return false;
+    }
+    
+    // Sample AudioData
+    // --------------------------------------------
+    
+    // ditch any existing audio data
+    FreeAudioSample(audioData);
+    
+    audioDataPtr = nullptr;
+    audioDataSize = 0;
+    audioDataTotalNumDatums = 0;
+    audioDataTotalNumFrames = 0;
+    audioSampleRate = 0;
+    audioIsStereo = false;
+    audioIsSilence = false;
+    audioDurationSeconds = 0.0;
+    
+    // attempt to load audio
+    success = Load16bitStereoPCMAudioFromFile(filePath);
+    if(!success)
+    {
+        FreeAudioSample(audioData);
+        
+        audioDataPtr = nullptr;
+        audioDataSize = 0;
+        audioDataTotalNumDatums = 0;
+        audioDataTotalNumFrames = 0;
+        audioSampleRate = 0;
+        audioIsStereo = false;
+        audioIsSilence = false;
+        audioDurationSeconds = 0.0;
+        
+        goto Exit;
+    }
+    
+Exit:
+    return success;
+}
+
+bool AudiblizerTestHarness::GenerateSampleAudio(uint32_t sampleRate, bool stereo, bool silence, double durationSeconds)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    
+    bool success = true;
+    
+    if(!initialized)
+    {
+        return false;
+    }
+    
+    // Sample AudioData
+    // --------------------------------------------
+    
+    // ditch any existing audio data
+    FreeAudioSample(audioData);
+    
+    audioDataPtr = nullptr;
+    audioDataSize = 0;
+    audioDataTotalNumDatums = 0;
+    audioDataTotalNumFrames = 0;
+    audioSampleRate = 0;
+    audioIsStereo = false;
+    audioIsSilence = false;
+    audioDurationSeconds = 0.0;
+    
+    // generate audio sample
+    audioData = (uint8_t*)GenerateAudioSample(sampleRate, durationSeconds, stereo, silence, &audioDataSize);
+    if(audioData == nullptr)
+    {
+        success = false;
+        goto Exit;
+    }
+    
+    audioDataPtr = audioData;
+    audioSampleRate = sampleRate;
+    audioIsStereo = stereo;
+    audioIsSilence = silence;
+    audioDurationSeconds = durationSeconds;
+    audioDataTotalNumDatums = audioDataSize / sizeof(uint16_t);
+    audioDataTotalNumFrames = audioDataSize / Audiblizer::AudioFormatFrameByteLength(audioFormat);
+    
+Exit:
+    return success;
 }
 
 void AudiblizerTestHarness::PrepareForDestruction()

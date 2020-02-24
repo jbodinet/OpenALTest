@@ -25,12 +25,14 @@ class AudiblizerTestHarness : public Audiblizer::AudioChunkCompletionListener, p
 {
 public:
     AudiblizerTestHarness();
-    ~AudiblizerTestHarness();
+    virtual ~AudiblizerTestHarness();
     
     std::shared_ptr<AudiblizerTestHarness> getptr() { return shared_from_this(); }
     
-    bool Initialize();
-    void PrepareForDestruction();
+    virtual bool Initialize();
+    virtual bool LoadAudio(const char *filePath);
+    virtual bool GenerateSampleAudio(uint32_t sampleRate, bool stereo, bool silence, double durationSeconds);
+    virtual void PrepareForDestruction();
     
     class VideoParameters
     {
@@ -42,9 +44,9 @@ public:
     
     typedef std::vector<VideoParameters> VideoSegments;
    
-    bool StartTest(const VideoSegments &videoSegments, double adversarialTestingAudioPlayrateFactor = 1.0, uint32_t adversarialTestingAudioChunkCacheSize = 1, uint32_t numAdversarialPressureTheads = 0);
-    bool StopTest();
-    void WaitOnTestCompletion();
+    virtual bool StartTest(const VideoSegments &videoSegments, double adversarialTestingAudioPlayrateFactor = 1.0, uint32_t adversarialTestingAudioChunkCacheSize = 1, uint32_t numAdversarialPressureTheads = 0);
+    virtual bool StopTest();
+    virtual void WaitOnTestCompletion();
     
     // Audiblizer::AudioChunkCompletionListener interface
     // ------------------------------------------------------------------
@@ -57,7 +59,23 @@ public:
     // Video FrameHead
     // ------------------------------------------------------------------
     enum PumpVideoFrameSender { PumpVideoFrameSender_VideoTimer = 0, PumpVideoFrameSender_AudioUnqueuer };
-    void PumpVideoFrame(PumpVideoFrameSender sender, int32_t numPumps = 1); // stub! just outputs info
+    virtual void PumpVideoFrame(PumpVideoFrameSender sender, int32_t numPumps = 1); // stub! just outputs info
+    
+    // Load sample audio from file (must be overloaded by platform-specific / xplat-codec-specific
+    // subclass in order to work)
+    // ------------------------------------------------------------------
+    virtual bool Load16bitStereoPCMAudioFromFile(const char *filePath) { return false; }
+    
+protected:
+    uint8_t  *audioData;
+    uint8_t  *audioDataPtr;
+    size_t    audioDataSize;
+    size_t    audioDataTotalNumDatums;
+    size_t    audioDataTotalNumFrames;
+    uint32_t  audioSampleRate;
+    bool      audioIsStereo;
+    bool      audioIsSilence;
+    double    audioDurationSeconds;
     
 private:
     typedef uint64_t VideoPlaymapKey;
@@ -77,15 +95,6 @@ private:
     uint32_t      videoSegmentsTotalNumFrames;
     VideoPlaymap  videoPlaymap;
     uint64_t      frameRateAdjustedOnFrameIndex;
-    uint8_t  *audioData;
-    uint8_t  *audioDataPtr;
-    size_t    audioDataSize;
-    size_t    audioDataTotalNumDatums;
-    size_t    audioDataTotalNumFrames;
-    uint32_t  audioSampleRate;
-    bool      audioIsStereo;
-    bool      audioIsSilence;
-    double    audioDurationSeconds;
     double    audioPlayrateFactor; // the actual factor of 'ideal audio playrate / actual audio playrate'
     const double maxQueuedAudioDurationSeconds;
     static const Audiblizer::AudioFormat audioFormat;

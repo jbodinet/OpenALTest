@@ -34,6 +34,21 @@ int main(int argc, const char * argv[])
         goto Exit;
     }
     
+    // get some type of audio into the test harness
+    if(!audiblizerTestHarness->LoadAudio("/Users/josh/Desktop/04 Twisting By The Pool.m4a"))
+    {
+        uint32_t fallbackToneSampleRate = 48000;
+        bool     fallbackToneIsStereo = true;
+        bool     fallbackToneIsSilence = true;
+        double   fallbackTonDurationSeconds = 5.0;
+        
+        if(!audiblizerTestHarness->GenerateSampleAudio(fallbackToneSampleRate, fallbackToneIsStereo, fallbackToneIsSilence, fallbackTonDurationSeconds))
+        {
+            printf("AudiblizerTestHarness Failed to load any sample audio whatsoever!!!\n");
+            goto Exit;
+        }
+    }
+    
     // create video segment information
     // ---------------------------------------
     
