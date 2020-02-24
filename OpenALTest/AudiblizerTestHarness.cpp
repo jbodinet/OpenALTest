@@ -106,7 +106,7 @@ Exit:
     return retVal;
 }
 
-bool AudiblizerTestHarness::LoadAudio(const char *filePath)
+bool AudiblizerTestHarness::LoadAudio(const char *filePath, uint32_t sampleRate)
 {
     std::lock_guard<std::mutex> lock(mutex);
     
@@ -133,7 +133,7 @@ bool AudiblizerTestHarness::LoadAudio(const char *filePath)
     audioDurationSeconds = 0.0;
     
     // attempt to load audio
-    success = Load16bitStereoPCMAudioFromFile(filePath);
+    success = Load16bitStereoPCMAudioFromFile(filePath, sampleRate);
     if(!success)
     {
         FreeAudioSample(audioData);

@@ -13,18 +13,22 @@
 #include <map>
 #include <iterator>
 #include "AudiblizerTestHarness.h"
+#include "AudiblizerTestHarnessApple.h"
 //#include <OpenAL/al.h>
 //#include <OpenAL/alc.h>
 
 int main(int argc, const char * argv[])
 {
-    std::shared_ptr<AudiblizerTestHarness> audiblizerTestHarness = std::make_shared<AudiblizerTestHarness>();
+    std::shared_ptr<AudiblizerTestHarness> audiblizerTestHarness = std::make_shared<AudiblizerTestHarnessApple>();
     AudiblizerTestHarness::VideoSegments videoSegments;
     AudiblizerTestHarness::VideoParameters videoParameters;
     double audioPlayrateFactor;
     uint32_t audioChunkCacheSize;
     uint32_t numPressureThreads;
     bool multiframerate = true;
+    
+    std::string sourceAudioFilePath = "/Users/josh/Desktop/04 Twisting By The Pool.m4a";
+    uint32_t sourceAudioSampleRate = 48000;
     
     // initialize test harness
     // ---------------------------------------
@@ -35,7 +39,7 @@ int main(int argc, const char * argv[])
     }
     
     // get some type of audio into the test harness
-    if(!audiblizerTestHarness->LoadAudio("/Users/josh/Desktop/04 Twisting By The Pool.m4a"))
+    if(!audiblizerTestHarness->LoadAudio(sourceAudioFilePath.c_str(), sourceAudioSampleRate))
     {
         uint32_t fallbackToneSampleRate = 48000;
         bool     fallbackToneIsStereo = true;

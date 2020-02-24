@@ -13,6 +13,9 @@
 		03615FAD23E87B2500EBE24C /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03615FAC23E87B2500EBE24C /* OpenAL.framework */; };
 		03615FB023EB1F8F00EBE24C /* Audiblizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03615FAF23EB1F8F00EBE24C /* Audiblizer.cpp */; };
 		03615FB323EB673200EBE24C /* AudiblizerTestHarness.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 03615FB223EB673200EBE24C /* AudiblizerTestHarness.cpp */; };
+		0363D85D2404516C000C1C75 /* AudiblizerTestHarnessApple.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0363D85C2404516C000C1C75 /* AudiblizerTestHarnessApple.cpp */; };
+		0363D8612404564B000C1C75 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0363D8602404564B000C1C75 /* AudioToolbox.framework */; };
+		0363D8632404565D000C1C75 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0363D8622404565D000C1C75 /* CoreFoundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -40,6 +43,11 @@
 		03615FAF23EB1F8F00EBE24C /* Audiblizer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Audiblizer.cpp; sourceTree = "<group>"; };
 		03615FB123EB672300EBE24C /* AudiblizerTestHarness.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudiblizerTestHarness.h; sourceTree = "<group>"; };
 		03615FB223EB673200EBE24C /* AudiblizerTestHarness.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudiblizerTestHarness.cpp; sourceTree = "<group>"; };
+		0363D85B24045159000C1C75 /* AudiblizerTestHarnessApple.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudiblizerTestHarnessApple.h; sourceTree = "<group>"; };
+		0363D85C2404516C000C1C75 /* AudiblizerTestHarnessApple.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudiblizerTestHarnessApple.cpp; sourceTree = "<group>"; };
+		0363D85E2404563C000C1C75 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
+		0363D8602404564B000C1C75 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+		0363D8622404565D000C1C75 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,6 +55,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0363D8632404565D000C1C75 /* CoreFoundation.framework in Frameworks */,
+				0363D8612404564B000C1C75 /* AudioToolbox.framework in Frameworks */,
 				03615FAD23E87B2500EBE24C /* OpenAL.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -78,6 +88,8 @@
 				03615FAE23EB1F8100EBE24C /* Audiblizer.h */,
 				03615FB223EB673200EBE24C /* AudiblizerTestHarness.cpp */,
 				03615FB123EB672300EBE24C /* AudiblizerTestHarness.h */,
+				0363D85C2404516C000C1C75 /* AudiblizerTestHarnessApple.cpp */,
+				0363D85B24045159000C1C75 /* AudiblizerTestHarnessApple.h */,
 				03615FAA23E8791900EBE24C /* Event.h */,
 				0352D96E23F1EDFD00D70B9F /* HighPrecisionTimer.cpp */,
 				0352D96F23F1EDFD00D70B9F /* HighPrecisionTimer.h */,
@@ -91,6 +103,9 @@
 		03615FAB23E87B2500EBE24C /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				0363D8622404565D000C1C75 /* CoreFoundation.framework */,
+				0363D8602404564B000C1C75 /* AudioToolbox.framework */,
+				0363D85E2404563C000C1C75 /* CoreAudio.framework */,
 				03615FAC23E87B2500EBE24C /* OpenAL.framework */,
 			);
 			name = Frameworks;
@@ -152,6 +167,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0363D85D2404516C000C1C75 /* AudiblizerTestHarnessApple.cpp in Sources */,
 				0352D97623F5D33B00D70B9F /* VideoTimerDelegate.cpp in Sources */,
 				0352D97023F1EDFD00D70B9F /* HighPrecisionTimer.cpp in Sources */,
 				03615FB323EB673200EBE24C /* AudiblizerTestHarness.cpp in Sources */,

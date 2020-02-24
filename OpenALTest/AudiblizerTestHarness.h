@@ -30,7 +30,7 @@ public:
     std::shared_ptr<AudiblizerTestHarness> getptr() { return shared_from_this(); }
     
     virtual bool Initialize();
-    virtual bool LoadAudio(const char *filePath);
+    virtual bool LoadAudio(const char *filePath, uint32_t sampleRate);
     virtual bool GenerateSampleAudio(uint32_t sampleRate, bool stereo, bool silence, double durationSeconds);
     virtual void PrepareForDestruction();
     
@@ -64,9 +64,13 @@ public:
     // Load sample audio from file (must be overloaded by platform-specific / xplat-codec-specific
     // subclass in order to work)
     // ------------------------------------------------------------------
-    virtual bool Load16bitStereoPCMAudioFromFile(const char *filePath) { return false; }
+    virtual bool Load16bitStereoPCMAudioFromFile(const char *filePath, uint32_t sampleRate) { return false; }
     
 protected:
+    bool initialized;
+    
+    std::mutex mutex;
+    
     uint8_t  *audioData;
     uint8_t  *audioDataPtr;
     size_t    audioDataSize;
@@ -77,6 +81,10 @@ protected:
     bool      audioIsSilence;
     double    audioDurationSeconds;
     
+    // --- Static Utility Functions ---
+    static void* GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, bool silence, size_t *bufferSizeOut);
+    static void FreeAudioSample(void* data);
+    
 private:
     typedef uint64_t VideoPlaymapKey;
     typedef VideoParameters VideoPlaymapValue;
@@ -84,8 +92,6 @@ private:
     typedef std::pair<VideoPlaymapKey, VideoPlaymapValue> VideoPlaymapPair;
     typedef VideoPlaymap::iterator VideoPlaymapIterator;
     typedef std::pair<VideoPlaymapIterator, bool> VideoPlaymapInsertionPair;
-    
-    std::mutex mutex;
     
     std::shared_ptr<Audiblizer> audiblizer;
     std::shared_ptr<VideoTimerDelegate> videoTimerDelegate;
@@ -147,8 +153,6 @@ private:
     std::chrono::high_resolution_clock::time_point lastCallToAudioChunkCompleted;
     bool                                           firstCallToAudioChunkCompleted;
     
-    bool initialized;
-    
     // --- Audio Queueing Thread ---
     std::thread *audioQueueingThread;
     bool         audioQueueingThreadRunning;
@@ -203,10 +207,6 @@ private:
     uint32_t  adversarialTestingAudioChunkCacheSize;
     uint32_t  adversarialTestingAudioChunkCacheAccum; // we don't really need to cache the audio chunks, just collect the 'pings' and then
     std::vector<std::shared_ptr<AdversarialPressureThread>> adversarialPressureThreads;
-    
-    // --- Static Utility Functions ---
-    static void* GenerateAudioSample(uint32_t sampleRate, double durationSeconds, bool stereo, bool silence, size_t *bufferSizeOut);
-    static void FreeAudioSample(void* data);
 };
 
 #endif /* AudiblizerTestHarness_h */
