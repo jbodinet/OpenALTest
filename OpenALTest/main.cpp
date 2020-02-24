@@ -14,8 +14,6 @@
 #include <iterator>
 #include "AudiblizerTestHarness.h"
 #include "AudiblizerTestHarnessApple.h"
-//#include <OpenAL/al.h>
-//#include <OpenAL/alc.h>
 
 int main(int argc, const char * argv[])
 {
@@ -39,8 +37,13 @@ int main(int argc, const char * argv[])
     }
     
     // get some type of audio into the test harness
+    // ---------------------------------------
+    
+    // try first to load some type of test file
     if(!audiblizerTestHarness->LoadAudio(sourceAudioFilePath.c_str(), sourceAudioSampleRate))
     {
+        // failing that, generate sample tone
+        
         uint32_t fallbackToneSampleRate = 48000;
         bool     fallbackToneIsStereo = true;
         bool     fallbackToneIsSilence = true;
