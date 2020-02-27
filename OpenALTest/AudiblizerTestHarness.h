@@ -66,6 +66,19 @@ public:
     // ------------------------------------------------------------------
     virtual bool Load16bitStereoPCMAudioFromFile(const char *filePath, uint32_t sampleRate) { return false; }
     
+    // Data Output
+    // ------------------------------------------------------------------
+    class DataOutputter
+    {
+    public:
+        DataOutputter () {}
+        virtual ~DataOutputter() {}
+        
+        virtual void OutputData(const char* data) = 0;
+    };
+    
+    virtual void SetDataOutputter(std::shared_ptr<DataOutputter> outputter) { std::lock_guard<std::mutex> lock(dataOutputterMutex); dataOutputter = outputter; }
+    
 protected:
     bool initialized;
     
@@ -172,6 +185,9 @@ private:
         std::chrono::duration<float> deltaFloatingPointSeconds;
         std::chrono::duration<float> totalFloatingPointSeconds;
     };
+    
+    std::mutex dataOutputterMutex;
+    std::shared_ptr<DataOutputter> dataOutputter;
     
     // --- Pressure Threads ---
     class AdversarialPressureThread

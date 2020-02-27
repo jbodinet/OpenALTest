@@ -44,6 +44,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     maxQueuedAudioDurationSeconds(4.0),
     dataOutputThread(nullptr),
     dataOutputThreadRunning(false),
+    dataOutputter(nullptr),
     initialized(false)
 {
     
@@ -870,6 +871,9 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
     while(audiblizerTestHarness->dataOutputThreadRunning || !queueIsEmpty)
     {
         OutputData outputData;
+        std::string outputDataString;
+        const uint32_t outputDataCStringSize = 512;
+        char outputDataCString [outputDataCStringSize];
         queueIsEmpty = true;
         vfHiccup = false;
         
@@ -922,35 +926,53 @@ void AudiblizerTestHarness::DataOutputThreadProc(AudiblizerTestHarness *audibliz
             
             if(audiblizerTestHarness->adversarialTestingAudioChunkCacheSize == 1)
             {
-                printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f",
-                       outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
-                       outputData.avEqualizer,
-                       outputData.audioChunkIter,
-                       outputData.videoFrameIter,
-                       vfHiccup ? "*" : " ",
-                       outputData.deltaFloatingPointSeconds.count(),
-                       outputData.totalFloatingPointSeconds.count());
+                memset(outputDataCString, 0, outputDataCStringSize);
+                sprintf(outputDataCString,
+                        "Sender:%s   A/V Eq:%04lld   ACI:%06lld   VFI:%06lld%s  delta sec:%f   total sec:%f",
+                        outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
+                        outputData.avEqualizer,
+                        outputData.audioChunkIter,
+                        outputData.videoFrameIter,
+                        vfHiccup ? "*" : " ",
+                        outputData.deltaFloatingPointSeconds.count(),
+                        outputData.totalFloatingPointSeconds.count());
+                
+                outputDataString += outputDataCString;
             }
             else
             {
-                printf("Sender:%s   A/V Eq:%04lld   ACI:%06lld+%02d   VFI:%06lld%s  delta sec:%f   total sec:%f",
-                       outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
-                       outputData.avEqualizer,
-                       outputData.audioChunkIter,
-                       outputData.adversarialTestingAudioChunkCacheAccum,
-                       outputData.videoFrameIter,
-                       vfHiccup ? "*" : " ",
-                       outputData.deltaFloatingPointSeconds.count(),
-                       outputData.totalFloatingPointSeconds.count());
+                memset(outputDataCString, 0, outputDataCStringSize);
+                sprintf(outputDataCString,
+                        "Sender:%s   A/V Eq:%04lld   ACI:%06lld+%02d   VFI:%06lld%s  delta sec:%f   total sec:%f",
+                        outputData.pumpVideoFrameSender == PumpVideoFrameSender_VideoTimer ? "V" : "A",
+                        outputData.avEqualizer,
+                        outputData.audioChunkIter,
+                        outputData.adversarialTestingAudioChunkCacheAccum,
+                        outputData.videoFrameIter,
+                        vfHiccup ? "*" : " ",
+                        outputData.deltaFloatingPointSeconds.count(),
+                        outputData.totalFloatingPointSeconds.count());
+                
+                outputDataString += outputDataCString;
             }
             
             if(drift)
             {
-                printf("   *** DRIFT ***\n");
+                outputDataString += "   *** DRIFT ***\n";
             }
             else
             {
-                printf("\n");
+                outputDataString += "\n";
+            }
+            
+            std::lock_guard<std::mutex> lock(audiblizerTestHarness->dataOutputterMutex);
+            if(audiblizerTestHarness->dataOutputter != nullptr)
+            {
+                audiblizerTestHarness->dataOutputter->OutputData(outputDataString.c_str());
+            }
+            else
+            {
+                printf("%s", outputDataString.c_str());
             }
         }
         else

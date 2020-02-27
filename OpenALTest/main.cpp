@@ -28,6 +28,26 @@ int main(int argc, const char * argv[])
     std::string sourceAudioFilePath = "/Users/josh/Desktop/04 Twisting By The Pool.m4a";
     uint32_t sourceAudioSampleRate = 48000;
     
+    // optionally declare and set a DataOutputter
+    // ---------------------------------------
+    const bool useCustomDataOutputter = false;
+    if(useCustomDataOutputter)
+    {
+        class DataOutputter : public AudiblizerTestHarness::DataOutputter
+        {
+        public:
+            DataOutputter() {}
+            virtual ~DataOutputter() {}
+            
+            virtual void OutputData(const char* data)
+            {
+                printf("CustomDataOutputter   %s", data);
+            }
+        };
+        
+        audiblizerTestHarness->SetDataOutputter(std::make_shared<DataOutputter>());
+    }
+    
     // initialize test harness
     // ---------------------------------------
     if(!audiblizerTestHarness->Initialize())
