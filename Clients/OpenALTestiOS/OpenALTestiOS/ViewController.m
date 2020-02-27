@@ -9,7 +9,11 @@
 #import "ViewController.h"
 #import "ViewControllerImagePickerSansCopy.h"
 
-@interface ViewController ()
+#include "AudiblizerTestHarnessApple.h"
+
+@interface ViewController () {
+    std::shared_ptr<AudiblizerTestHarnessApple> audiblizer;
+}
 
 @end
 
@@ -19,13 +23,27 @@
     [super viewDidLoad];
     
     self.viewControllerHasMadeFirstAppearance = NO;
+    
+    audiblizer = NULL;
 }
 
 -(void)viewDidAppear:(BOOL)animated {
     
     if(!self.viewControllerHasMadeFirstAppearance)
     {
-        // TODO: Init OpenAL layer
+        // Init OpenAL layer
+        audiblizer = std::make_shared<AudiblizerTestHarnessApple>();
+        if(audiblizer != nullptr)
+        {
+            if(!audiblizer->Initialize())
+            {
+                NSLog(@"AudiblizerTestHarness failed to Initialize!!!\n");
+            }
+        }
+        else
+        {
+            NSLog(@"Could NOT create AudiblizerTestHarness!!!\n");
+        }
         
         // force request to access photos library
         [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
@@ -58,8 +76,16 @@
     });
 }
 
--(void) loadMovieIntoPlayer:(NSURL*)movieURL {
-    // TODO: do whatever we are going to do w/ OpenAL
+-(void) loadMovieIntoAudiblizerTestHarness:(NSURL*)movieURL {
+    if(audiblizer != nullptr)
+    {
+        uint32_t audioSampleRate = 48000;
+        
+        if(!audiblizer->LoadAudio([[movieURL path] cStringUsingEncoding:NSUTF8StringEncoding] , audioSampleRate))
+        {
+            NSLog(@"Audiblizer failed to load audio from file at path:%@", [movieURL path]);
+        }
+    }
 }
 
 #pragma mark - Segue
@@ -112,7 +138,7 @@
                 // load the pickedFile into the player
                 if(NSOrderedSame == [[urlAsset.URL absoluteString] compare:pickedFileAbsoluteURLString])
                 {
-                    [self loadMovieIntoPlayer:[NSURL URLWithString:pickedFileAbsoluteURLString]];
+                    [self loadMovieIntoAudiblizerTestHarness:[NSURL URLWithString:pickedFileAbsoluteURLString]];
                 }
             }
         }

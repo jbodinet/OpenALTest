@@ -10,7 +10,7 @@
 #import <Photos/Photos.h>
 #import <MobileCoreServices/MobileCoreServices.h>
 
-@interface ViewController : UIViewController
+@interface ViewController : UIViewController 
 
 @property (strong, nonatomic) IBOutlet UITextView *textView;
 @property (strong, nonatomic) IBOutlet UIButton *pickMovieButton;
@@ -18,7 +18,7 @@
 @property (nonatomic) BOOL viewControllerHasMadeFirstAppearance;
 
 -(void) pickMovie;
--(void) loadMovieIntoPlayer:(NSURL*)movieURL;
+-(void) loadMovieIntoAudiblizerTestHarness:(NSURL*)movieURL;
 
 - (IBAction)hitPickMovieButton:(UIButton *)sender;
 - (IBAction)showImagePickerSansCopyUnwind:(UIStoryboardSegue*)unwindSegue;

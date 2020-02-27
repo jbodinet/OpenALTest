@@ -15,6 +15,12 @@
 		0363D8AE2406D04E000C1C75 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8AD2406D04E000C1C75 /* main.m */; };
 		0363D8B62406D158000C1C75 /* ViewControllerImagePickerSansCopy.m in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8B52406D158000C1C75 /* ViewControllerImagePickerSansCopy.m */; };
 		0363D8B92406D180000C1C75 /* CollectionViewCellImagePickerSansCopy.m in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8B82406D180000C1C75 /* CollectionViewCellImagePickerSansCopy.m */; };
+		0363D8C524082CA3000C1C75 /* AudiblizerTestHarnessApple.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8BB24082CA3000C1C75 /* AudiblizerTestHarnessApple.cpp */; };
+		0363D8C624082CA3000C1C75 /* Audiblizer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8BF24082CA3000C1C75 /* Audiblizer.cpp */; };
+		0363D8C724082CA3000C1C75 /* HighPrecisionTimer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8C024082CA3000C1C75 /* HighPrecisionTimer.cpp */; };
+		0363D8C824082CA3000C1C75 /* AudiblizerTestHarness.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8C124082CA3000C1C75 /* AudiblizerTestHarness.cpp */; };
+		0363D8C924082CA3000C1C75 /* VideoTimerDelegate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8C224082CA3000C1C75 /* VideoTimerDelegate.cpp */; };
+		0363D8CC24082D1D000C1C75 /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0363D8CB24082D1D000C1C75 /* OpenAL.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,7 +28,7 @@
 		0363D89E2406D04D000C1C75 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		0363D89F2406D04D000C1C75 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		0363D8A12406D04D000C1C75 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
-		0363D8A22406D04D000C1C75 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		0363D8A22406D04D000C1C75 /* ViewController.m */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; path = ViewController.m; sourceTree = "<group>"; };
 		0363D8A52406D04D000C1C75 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		0363D8A72406D04E000C1C75 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0363D8AA2406D04E000C1C75 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -32,6 +38,18 @@
 		0363D8B52406D158000C1C75 /* ViewControllerImagePickerSansCopy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewControllerImagePickerSansCopy.m; sourceTree = "<group>"; };
 		0363D8B72406D180000C1C75 /* CollectionViewCellImagePickerSansCopy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CollectionViewCellImagePickerSansCopy.h; sourceTree = "<group>"; };
 		0363D8B82406D180000C1C75 /* CollectionViewCellImagePickerSansCopy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CollectionViewCellImagePickerSansCopy.m; sourceTree = "<group>"; };
+		0363D8BA24082CA3000C1C75 /* HighPrecisionTimer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = HighPrecisionTimer.h; path = ../../../OpenALTest/HighPrecisionTimer.h; sourceTree = "<group>"; };
+		0363D8BB24082CA3000C1C75 /* AudiblizerTestHarnessApple.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = AudiblizerTestHarnessApple.cpp; path = ../../../OpenALTest/AudiblizerTestHarnessApple.cpp; sourceTree = "<group>"; };
+		0363D8BC24082CA3000C1C75 /* AudiblizerTestHarness.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AudiblizerTestHarness.h; path = ../../../OpenALTest/AudiblizerTestHarness.h; sourceTree = "<group>"; };
+		0363D8BD24082CA3000C1C75 /* AudiblizerTestHarnessApple.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AudiblizerTestHarnessApple.h; path = ../../../OpenALTest/AudiblizerTestHarnessApple.h; sourceTree = "<group>"; };
+		0363D8BE24082CA3000C1C75 /* Audiblizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Audiblizer.h; path = ../../../OpenALTest/Audiblizer.h; sourceTree = "<group>"; };
+		0363D8BF24082CA3000C1C75 /* Audiblizer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Audiblizer.cpp; path = ../../../OpenALTest/Audiblizer.cpp; sourceTree = "<group>"; };
+		0363D8C024082CA3000C1C75 /* HighPrecisionTimer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = HighPrecisionTimer.cpp; path = ../../../OpenALTest/HighPrecisionTimer.cpp; sourceTree = "<group>"; };
+		0363D8C124082CA3000C1C75 /* AudiblizerTestHarness.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = AudiblizerTestHarness.cpp; path = ../../../OpenALTest/AudiblizerTestHarness.cpp; sourceTree = "<group>"; };
+		0363D8C224082CA3000C1C75 /* VideoTimerDelegate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = VideoTimerDelegate.cpp; path = ../../../OpenALTest/VideoTimerDelegate.cpp; sourceTree = "<group>"; };
+		0363D8C324082CA3000C1C75 /* VideoTimerDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VideoTimerDelegate.h; path = ../../../OpenALTest/VideoTimerDelegate.h; sourceTree = "<group>"; };
+		0363D8C424082CA3000C1C75 /* Event.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Event.h; path = ../../../OpenALTest/Event.h; sourceTree = "<group>"; };
+		0363D8CB24082D1D000C1C75 /* OpenAL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenAL.framework; path = System/Library/Frameworks/OpenAL.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -39,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0363D8CC24082D1D000C1C75 /* OpenAL.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -50,6 +69,7 @@
 			children = (
 				0363D89D2406D04D000C1C75 /* OpenALTestiOS */,
 				0363D89C2406D04D000C1C75 /* Products */,
+				0363D8CA24082D1D000C1C75 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -64,6 +84,17 @@
 		0363D89D2406D04D000C1C75 /* OpenALTestiOS */ = {
 			isa = PBXGroup;
 			children = (
+				0363D8BF24082CA3000C1C75 /* Audiblizer.cpp */,
+				0363D8BE24082CA3000C1C75 /* Audiblizer.h */,
+				0363D8C124082CA3000C1C75 /* AudiblizerTestHarness.cpp */,
+				0363D8BC24082CA3000C1C75 /* AudiblizerTestHarness.h */,
+				0363D8BB24082CA3000C1C75 /* AudiblizerTestHarnessApple.cpp */,
+				0363D8BD24082CA3000C1C75 /* AudiblizerTestHarnessApple.h */,
+				0363D8C424082CA3000C1C75 /* Event.h */,
+				0363D8C024082CA3000C1C75 /* HighPrecisionTimer.cpp */,
+				0363D8BA24082CA3000C1C75 /* HighPrecisionTimer.h */,
+				0363D8C224082CA3000C1C75 /* VideoTimerDelegate.cpp */,
+				0363D8C324082CA3000C1C75 /* VideoTimerDelegate.h */,
 				0363D89E2406D04D000C1C75 /* AppDelegate.h */,
 				0363D89F2406D04D000C1C75 /* AppDelegate.m */,
 				0363D8A12406D04D000C1C75 /* ViewController.h */,
@@ -79,6 +110,14 @@
 				0363D8B82406D180000C1C75 /* CollectionViewCellImagePickerSansCopy.m */,
 			);
 			path = OpenALTestiOS;
+			sourceTree = "<group>";
+		};
+		0363D8CA24082D1D000C1C75 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0363D8CB24082D1D000C1C75 /* OpenAL.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -151,8 +190,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0363D8C924082CA3000C1C75 /* VideoTimerDelegate.cpp in Sources */,
+				0363D8C524082CA3000C1C75 /* AudiblizerTestHarnessApple.cpp in Sources */,
 				0363D8A32406D04D000C1C75 /* ViewController.m in Sources */,
+				0363D8C624082CA3000C1C75 /* Audiblizer.cpp in Sources */,
+				0363D8C824082CA3000C1C75 /* AudiblizerTestHarness.cpp in Sources */,
 				0363D8AE2406D04E000C1C75 /* main.m in Sources */,
+				0363D8C724082CA3000C1C75 /* HighPrecisionTimer.cpp in Sources */,
 				0363D8B62406D158000C1C75 /* ViewControllerImagePickerSansCopy.m in Sources */,
 				0363D8B92406D180000C1C75 /* CollectionViewCellImagePickerSansCopy.m in Sources */,
 				0363D8A02406D04D000C1C75 /* AppDelegate.m in Sources */,
