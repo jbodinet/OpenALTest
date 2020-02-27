@@ -328,6 +328,10 @@ bool AudiblizerTestHarness::StopTest()
     
     size_t numAdversarialPressureThreads = 0;
     
+    std::string outputDataString;
+    const uint32_t outputDataCStringSize = 512;
+    char outputDataCString [outputDataCStringSize];
+    
     if(!initialized)
     {
         return false;
@@ -372,54 +376,91 @@ bool AudiblizerTestHarness::StopTest()
     
     // Report findings
     // -------------------------------------
-    printf("*** TestStopped ***\n");
+    outputDataString += "*** TestStopped ***\n";
     
     if(adversarialTestingAudioPlayrateFactor != 1.0)
     {
-        printf("Adversarial AudioPlayrateFactor:%f\n", adversarialTestingAudioPlayrateFactor);
-        printf("Actual AudioPlayrateFactor:%f\n", audioPlayrateFactor);
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Adversarial AudioPlayrateFactor:%f\n", adversarialTestingAudioPlayrateFactor);
+        outputDataString += outputDataCString;
+        
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Actual AudioPlayrateFactor:%f\n", audioPlayrateFactor);
+        outputDataString += outputDataCString;
     }
     
     if(adversarialTestingAudioChunkCacheSize != 1)
     {
-        printf("Adversarial AudioChunkCacheSize:%d\n", adversarialTestingAudioChunkCacheSize);
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Adversarial AudioChunkCacheSize:%d\n", adversarialTestingAudioChunkCacheSize);
+        outputDataString += outputDataCString;
     }
     
     if(numAdversarialPressureThreads != 0)
     {
-        printf("Adversarial PressureThreads count:%zu\n", numAdversarialPressureThreads);
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Adversarial PressureThreads count:%zu\n", numAdversarialPressureThreads);
+        outputDataString += outputDataCString;
     }
     
     if(videoSegmentOutputDataIter == 0)
     {
-        printf("VideoTimerPeriod:%f\n", videoSegmentOutputData[0].timerPeriod);
-        printf("Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", videoSegmentOutputData[0].cumulativeDelta.count() / (double)videoSegmentOutputData[0].numPumpsCompleted, videoSegmentOutputData[0].maxDelta.count(), videoSegmentOutputData[0].maxDeltaVideoFrameIter, videoSegmentOutputData[0].minDelta.count(), videoSegmentOutputData[0].minDeltaVideoFrameIter);
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "VideoTimerPeriod:%f\n", videoSegmentOutputData[0].timerPeriod);
+        outputDataString += outputDataCString;
+        
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", videoSegmentOutputData[0].cumulativeDelta.count() / (double)videoSegmentOutputData[0].numPumpsCompleted, videoSegmentOutputData[0].maxDelta.count(), videoSegmentOutputData[0].maxDeltaVideoFrameIter, videoSegmentOutputData[0].minDelta.count(), videoSegmentOutputData[0].minDeltaVideoFrameIter);
+        outputDataString += outputDataCString;
     }
     else
     {
         for(uint32_t i = 0; i <= videoSegmentOutputDataIter; i++)
         {
-            printf("VideoSegment:%d  VideoTimerPeriod:%f\n", i, videoSegmentOutputData[i].timerPeriod);
-            printf("VideoSegment:%d  Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", i, videoSegmentOutputData[i].cumulativeDelta.count() / (double)videoSegmentOutputData[i].numPumpsCompleted, videoSegmentOutputData[i].maxDelta.count(), videoSegmentOutputData[i].maxDeltaVideoFrameIter, videoSegmentOutputData[i].minDelta.count(), videoSegmentOutputData[i].minDeltaVideoFrameIter);
+            memset(outputDataCString, 0, outputDataCStringSize);
+            sprintf(outputDataCString, "VideoSegment:%d  VideoTimerPeriod:%f\n", i, videoSegmentOutputData[i].timerPeriod);
+            outputDataString += outputDataCString;
+            
+            memset(outputDataCString, 0, outputDataCStringSize);
+            sprintf(outputDataCString, "VideoSegment:%d  Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", i, videoSegmentOutputData[i].cumulativeDelta.count() / (double)videoSegmentOutputData[i].numPumpsCompleted, videoSegmentOutputData[i].maxDelta.count(), videoSegmentOutputData[i].maxDeltaVideoFrameIter, videoSegmentOutputData[i].minDelta.count(), videoSegmentOutputData[i].minDeltaVideoFrameIter);
+            outputDataString += outputDataCString;
         }
     }
         
     if(videoFrameHiccup)
     {
-        printf("*** VIDEO FRAME HICCUPS OCCURRED!!! MAX HICCUP: %d VIDEO FRAMES ***", maxVideoFrameHiccup);
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "*** VIDEO FRAME HICCUPS OCCURRED!!! MAX HICCUP: %d VIDEO FRAMES ***", maxVideoFrameHiccup);
+        outputDataString += outputDataCString;
     }
     else
     {
-        printf("No video frame hiccups occurred\n");
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "No video frame hiccups occurred\n");
+        outputDataString += outputDataCString;
     }
     
     if(avDrift)
     {
-        printf("*** AUDIO/VIDEO DRIFT OCCURRED!!! MAX DRIFT: %d VIDEO FRAMES - NUM FRAMES WITH DRIFT: %d - %% FRAMES WITH DRIFT: %f%% ***\n", maxAVDrift, avDriftNumFrames, (avDriftNumFrames / (double) videoSegmentsTotalNumFrames) * 100.0);
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "*** AUDIO/VIDEO DRIFT OCCURRED!!! MAX DRIFT: %d VIDEO FRAMES - NUM FRAMES WITH DRIFT: %d - %% FRAMES WITH DRIFT: %f%% ***\n", maxAVDrift, avDriftNumFrames, (avDriftNumFrames / (double) videoSegmentsTotalNumFrames) * 100.0);
+        outputDataString += outputDataCString;
     }
     else
     {
-        printf("No audio/video drift occurred\n");
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "No audio/video drift occurred\n");
+        outputDataString += outputDataCString;
+    }
+    
+    std::lock_guard<std::mutex> dataOutputterLock(dataOutputterMutex);
+    if(dataOutputter != nullptr)
+    {
+        dataOutputter->OutputData(outputDataString.c_str());
+    }
+    else
+    {
+        printf("%s", outputDataString.c_str());
     }
     
     return true;
