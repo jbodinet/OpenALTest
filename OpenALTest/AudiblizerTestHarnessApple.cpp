@@ -8,7 +8,6 @@
 
 #include "AudiblizerTestHarnessApple.h"
 
-#include <CoreAudio/CoreAudio.h>
 #include <AudioToolbox/AudioToolbox.h>
 
 bool AudiblizerTestHarnessApple::Load16bitStereoPCMAudioFromFile(const char *filePath, uint32_t sampleRate)
