@@ -81,7 +81,7 @@
     {
         uint32_t audioSampleRate = 48000;
         
-        if(!audiblizer->LoadAudio([[movieURL path] cStringUsingEncoding:NSUTF8StringEncoding] , audioSampleRate))
+        if(!audiblizer->LoadAudio([[movieURL path] cStringUsingEncoding:NSUTF8StringEncoding], audioSampleRate))
         {
             NSLog(@"Audiblizer failed to load audio from file at path:%@", [movieURL path]);
         }

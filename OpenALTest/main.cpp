@@ -26,6 +26,7 @@ int main(int argc, const char * argv[])
     bool multiframerate = true;
     
     std::string sourceAudioFilePath = "/Users/josh/Desktop/04 Twisting By The Pool.m4a";
+    // sourceAudioFilePath = "/Users/josh/Documents/Media/Video/Spherical/WindowsSample/SampleVideo.mp4";
     uint32_t sourceAudioSampleRate = 48000;
     
     // optionally declare and set a DataOutputter
