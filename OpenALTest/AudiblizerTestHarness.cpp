@@ -643,7 +643,11 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
     
     outputData.pumpVideoFrameSender = sender;
     outputData.avEqualizer = avEqualizer;
-    outputData.audioChunkIter = audioChunkIter;
+    outputData.audioChunkIter = audioChunkIter + 1; // IMPORTANT NOTE: 'audioChunkIter' represents the audio chunk ***THAT WAS JUST DEQUEUED***!!!
+                                                    //                  THUS THE ***CURRENT AUDIO CHUCK BEING PLAYED*** IS 'audioChunkIter + 1'.
+                                                    //                  As 'videoFrameIter' represents the current video frame being played, we
+                                                    //                  want 'audioChunkIter' to represent the current audio chunk being played,
+                                                    //                  and specifically ***NOT*** the audio chunk that was just dequeued.
     outputData.adversarialTestingAudioChunkCacheAccum = adversarialTestingAudioChunkCacheAccum;
     outputData.videoFrameIter = videoFrameIter;
     outputData.deltaFloatingPointSeconds = deltaFloatingPointSeconds;
