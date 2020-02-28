@@ -63,7 +63,27 @@
 
 #pragma mark - Button Handlers
 - (IBAction)hitPickMovieButton:(UIButton *)sender {
-    [self pickMovie];
+   // [self pickMovie];
+    
+    NSString *path = [NSString stringWithFormat:@"%@04TwistingByThePool.m4a", NSTemporaryDirectory()];
+    NSURL    *url  = [NSURL fileURLWithPath:path];
+    if([self loadMovieIntoAudiblizerTestHarness:url])
+    {
+        AudiblizerTestHarness::VideoSegments videoSegments;
+        AudiblizerTestHarness::VideoParameters videoParameters;
+        
+        videoParameters.sampleDuration = 1001;
+        videoParameters.timeScale = 30000;
+        videoParameters.numVideoFrames = 30 * 30;
+        videoSegments.push_back(videoParameters);
+        
+        videoParameters.sampleDuration = 1001;
+        videoParameters.timeScale = 60000;
+        videoParameters.numVideoFrames = 60 * 30;
+        videoSegments.push_back(videoParameters);
+        
+        audiblizer->StartTest(videoSegments);
+    }
 }
 
 #pragma mark - Player Utils
@@ -72,11 +92,28 @@
         if([PHPhotoLibrary authorizationStatus] != PHAuthorizationStatusAuthorized)
             return;
         
-        [self performSegueWithIdentifier:@"showImagePickerSansCopy" sender:self];
+        const BOOL useNativeImagePicker = YES;
+        if(useNativeImagePicker)
+        {
+            // pop open the photo library and show videos
+            UIImagePickerController *picker = [[UIImagePickerController alloc] init];
+            picker.delegate = self;
+            picker.sourceType = UIImagePickerControllerSourceTypePhotoLibrary;
+            picker.mediaTypes = [[NSArray alloc] initWithObjects: (NSString *) kUTTypeMovie, nil];
+            picker.allowsEditing = NO;
+            picker.videoQuality = UIImagePickerControllerQualityTypeHigh;
+            [self presentViewController:picker animated:YES completion:nil];
+        }
+        else
+        {
+            [self performSegueWithIdentifier:@"showImagePickerSansCopy" sender:self];
+        }
     });
 }
 
--(void) loadMovieIntoAudiblizerTestHarness:(NSURL*)movieURL {
+-(BOOL) loadMovieIntoAudiblizerTestHarness:(NSURL*)movieURL {
+    BOOL retVal = YES;
+    
     if(audiblizer != nullptr)
     {
         uint32_t audioSampleRate = 48000;
@@ -84,8 +121,37 @@
         if(!audiblizer->LoadAudio([[movieURL path] cStringUsingEncoding:NSUTF8StringEncoding], audioSampleRate))
         {
             NSLog(@"Audiblizer failed to load audio from file at path:%@", [movieURL path]);
+            
+            retVal = NO;
+            goto Exit;
         }
     }
+Exit:
+    return retVal;
+}
+
+#pragma mark - UIImagePickerControllerDelegate
+- (void)imagePickerController:(UIImagePickerController *)picker didFinishPickingMediaWithInfo:(NSDictionary *)info {
+    
+    if([(NSString*)info[UIImagePickerControllerMediaType] isEqualToString:(NSString*)kUTTypeVideo] ||
+       [(NSString*)info[UIImagePickerControllerMediaType] isEqualToString:(NSString*)kUTTypeMovie])
+    {
+        NSURL *mediaURL = info[UIImagePickerControllerMediaURL];
+        
+        // ditch all other videos except the one just picked
+        // as iOS always copies picked video into app data
+        [self clearMovieFilesFromTmpDirSparingURL:mediaURL];
+        
+        // load the video
+        [self loadMovieIntoAudiblizerTestHarness:mediaURL];
+    }
+    
+    [picker dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)imagePickerControllerDidCancel:(UIImagePickerController *)picker {
+    
+    [picker dismissViewControllerAnimated:YES completion:nil];
 }
 
 #pragma mark - Segue
@@ -149,5 +215,39 @@
     }
 }
 
+#pragma mark - Utilities
+-(void) clearMovieFilesFromTmpDirSparingURL:(NSURL*)exceptThisURL {
+    // Create a local file manager instance and grab the URL of the app temp directory
+    NSFileManager *localFileManager = [[NSFileManager alloc] init];
+    NSURL *directoryToScan = [NSURL fileURLWithPath:NSTemporaryDirectory()];
+    
+    // create an enumerator
+    NSDirectoryEnumerator *dirEnumerator =
+    [localFileManager   enumeratorAtURL:directoryToScan
+             includingPropertiesForKeys:[NSArray arrayWithObjects:NSURLIsDirectoryKey,nil]
+                                options: NSDirectoryEnumerationSkipsHiddenFiles |
+     NSDirectoryEnumerationSkipsSubdirectoryDescendants |
+     NSDirectoryEnumerationSkipsPackageDescendants
+                           errorHandler:nil];
+    
+    // walk the enumerator, ditching any mp4 files
+    NSError *error;
+    for (NSURL *theURL in dirEnumerator)
+    {
+        if(exceptThisURL != nil && [[theURL absoluteString] isEqualToString:[exceptThisURL absoluteString]])
+        {
+            continue;
+        }
+        
+        // if url is for an .mp4 file, delete the file
+        NSString *extension = [theURL pathExtension];
+        if([[extension lowercaseString] isEqualToString:@"mp4"] ||
+           [[extension lowercaseString] isEqualToString:@"mov"])
+        {
+            NSLog(@"AppCloseFileDelete:%@", [theURL path]);
+            [localFileManager removeItemAtURL:theURL error:&error];
+        }
+    }
+}
 
 @end

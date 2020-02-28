@@ -21,6 +21,8 @@
 		0363D8C824082CA3000C1C75 /* AudiblizerTestHarness.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8C124082CA3000C1C75 /* AudiblizerTestHarness.cpp */; };
 		0363D8C924082CA3000C1C75 /* VideoTimerDelegate.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0363D8C224082CA3000C1C75 /* VideoTimerDelegate.cpp */; };
 		0363D8CC24082D1D000C1C75 /* OpenAL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0363D8CB24082D1D000C1C75 /* OpenAL.framework */; };
+		0363D8CE240871FF000C1C75 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0363D8CD240871FF000C1C75 /* CoreServices.framework */; };
+		0363D8D024095635000C1C75 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0363D8CF24095634000C1C75 /* AudioToolbox.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +52,8 @@
 		0363D8C324082CA3000C1C75 /* VideoTimerDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VideoTimerDelegate.h; path = ../../../OpenALTest/VideoTimerDelegate.h; sourceTree = "<group>"; };
 		0363D8C424082CA3000C1C75 /* Event.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Event.h; path = ../../../OpenALTest/Event.h; sourceTree = "<group>"; };
 		0363D8CB24082D1D000C1C75 /* OpenAL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenAL.framework; path = System/Library/Frameworks/OpenAL.framework; sourceTree = SDKROOT; };
+		0363D8CD240871FF000C1C75 /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = System/Library/Frameworks/CoreServices.framework; sourceTree = SDKROOT; };
+		0363D8CF24095634000C1C75 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +61,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0363D8D024095635000C1C75 /* AudioToolbox.framework in Frameworks */,
+				0363D8CE240871FF000C1C75 /* CoreServices.framework in Frameworks */,
 				0363D8CC24082D1D000C1C75 /* OpenAL.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -115,6 +121,8 @@
 		0363D8CA24082D1D000C1C75 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				0363D8CF24095634000C1C75 /* AudioToolbox.framework */,
+				0363D8CD240871FF000C1C75 /* CoreServices.framework */,
 				0363D8CB24082D1D000C1C75 /* OpenAL.framework */,
 			);
 			name = Frameworks;
