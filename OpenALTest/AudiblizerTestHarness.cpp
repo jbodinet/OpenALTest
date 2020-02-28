@@ -25,6 +25,7 @@ AudiblizerTestHarness::AudiblizerTestHarness() :
     lastVideoFrameIter(0),
     videoTimerIter(0),
     avEqualizer(0),
+    audioRunningSlowAccum(0),
     videoFrameHiccup(false),
     maxVideoFrameHiccup(0),
     avDrift(false),
@@ -253,6 +254,7 @@ bool AudiblizerTestHarness::StartTest(const VideoSegments &videoSegmentsArg, dou
     lastVideoFrameIter = 0;
     videoTimerIter = 0;
     avEqualizer    = 0;
+    audioRunningSlowAccum = 0;
     videoFrameHiccup = false;
     maxVideoFrameHiccup = 0;
     avDrift = false;
@@ -496,6 +498,9 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
                 videoFrameIter += numActionablePumps;
                 avEqualizer = 0;
                 videoTimerDelegate->RefreshLastPing();
+                
+                // reset the accum that tracks audio running slower than video
+                audioRunningSlowAccum = 0;
             }
             // if it is still the case that avEqualizer > 0, then we here assume
             // that audio is running slighty *slower* than the video. We assume this as,
@@ -503,27 +508,54 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
             // avEqualizer to '0'
             else if(avEqualizer > 0)
             {
-                // we alter the audio playrate factor to represent what is going on with audio
-                audioPlayrateFactor = audioPlaybackDurationActual.count() / audioPlaybackDurationIdeal;
+                // note that we detected the audio running slowly
+                audioRunningSlowAccum++;
                 
-                // HOWEVER!!! if we are adversarially (and, thus, artificially) testing the handling of
-                // improperly-playing audio, then the audioPlayrate should still be calculated to be 1.0, above
-                // (as we are actually playing the audio at an expected rate, just not what is expected
-                // as compared to the video frame rate -- thus it is adversarial). In this case we need to
-                // set audioPlayrateFactor per how we are futzing with the audio
-                if(adversarialTestingAudioPlayrateFactor != 1.0)
+                // as the audio card can exhibit localized-wonkiness and yet still be overall
+                // performant in keeping up with the dequeue-ability of spent audio buffers,
+                // we add a 'audioRunningSlowAccum' accumulater, which only triggers a resetting
+                // of the video playback timer given the attainment of a certain threshold
+                if(audioRunningSlowAccum > audioRunningSlowThreshold)
                 {
-                    audioPlayrateFactor = adversarialTestingAudioPlayrateFactor;
+                    // ************************************************************************
+                    // QUESTION!!!
+                    //
+                    // Do we also want to check (and reset) the video clock in the event
+                    // that the audio is found to be running FAST? If we only check and reset
+                    // the clock when the audio is running slow, then the following code, which
+                    // resets the video timer using a slightly slower speed, has no counter-acting
+                    // force that will speed up the video timer given audio that starts out running
+                    // slow, but then picks up speed during playback
+                    // ************************************************************************
+                    
+                    // we alter the audio playrate factor to represent what is going on with audio
+                    audioPlayrateFactor = audioPlaybackDurationActual.count() / audioPlaybackDurationIdeal;
+                    
+                    // HOWEVER!!! if we are adversarially (and, thus, artificially) testing the handling of
+                    // improperly-playing audio, then the audioPlayrate should still be calculated to be 1.0, above
+                    // (as we are actually playing the audio at an expected rate, just not what is expected
+                    // as compared to the video frame rate -- thus it is adversarial). In this case we need to
+                    // set audioPlayrateFactor per how we are futzing with the audio
+                    if(adversarialTestingAudioPlayrateFactor != 1.0)
+                    {
+                        audioPlayrateFactor = adversarialTestingAudioPlayrateFactor;
+                    }
+                    
+                    // update the audioPlayrateFactor in the Video Timer and refresh the timer ping
+                    videoTimerDelegate->SetAudioPlayrateFactor(audioPlayrateFactor);
+                    videoTimerDelegate->RefreshLastPing();
+                    
+                    // reset the accum that tracks audio running slower than video
+                    audioRunningSlowAccum = 0;
                 }
-                
-                // update the audioPlayrateFactor in the Video Timer and refresh the timer ping
-                videoTimerDelegate->SetAudioPlayrateFactor(audioPlayrateFactor);
-                videoTimerDelegate->RefreshLastPing();
                 
                 goto Exit;
             }
             else
             {
+                // reset the accum that tracks audio running slower than video
+                audioRunningSlowAccum = 0;
+                
                 goto Exit;
             }
         }

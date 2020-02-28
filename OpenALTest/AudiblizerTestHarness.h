@@ -124,6 +124,8 @@ private:
     uint64_t lastVideoFrameIter;
     uint64_t videoTimerIter;
     int64_t  avEqualizer; // video timer ticks ADD 1, audio buffers reclaimed SUBTRACT 1
+    uint64_t audioRunningSlowAccum;
+    const uint64_t audioRunningSlowThreshold = 3;
     
     std::chrono::high_resolution_clock::time_point lastCallToPumpVideoFrame;
     std::chrono::high_resolution_clock::time_point playbackStart;
