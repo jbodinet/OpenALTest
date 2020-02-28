@@ -56,6 +56,7 @@ AudiblizerTestHarness::~AudiblizerTestHarness()
 {
     StopTest();
     FreeAudioSample(audioData);
+    audioData = nullptr;
 }
 
 bool AudiblizerTestHarness::Initialize()
@@ -124,7 +125,7 @@ bool AudiblizerTestHarness::LoadAudio(const char *filePath, uint32_t sampleRate)
     
     // ditch any existing audio data
     FreeAudioSample(audioData);
-    
+    audioData = nullptr;
     audioDataPtr = nullptr;
     audioDataSize = 0;
     audioDataTotalNumDatums = 0;
@@ -139,7 +140,7 @@ bool AudiblizerTestHarness::LoadAudio(const char *filePath, uint32_t sampleRate)
     if(!success)
     {
         FreeAudioSample(audioData);
-        
+        audioData = nullptr;
         audioDataPtr = nullptr;
         audioDataSize = 0;
         audioDataTotalNumDatums = 0;
@@ -172,7 +173,7 @@ bool AudiblizerTestHarness::GenerateSampleAudio(uint32_t sampleRate, bool stereo
     
     // ditch any existing audio data
     FreeAudioSample(audioData);
-    
+    audioData = nullptr;
     audioDataPtr = nullptr;
     audioDataSize = 0;
     audioDataTotalNumDatums = 0;

@@ -41,7 +41,7 @@ bool AudiblizerTestHarnessApple::Load16bitStereoPCMAudioFromFile(const char *fil
     // ditch any existing audio data
     // --------------------------------------------
     FreeAudioSample(audioData);
-    
+    audioData = nullptr;
     audioDataPtr = nullptr;
     audioDataSize = 0;
     audioDataTotalNumDatums = 0;
@@ -201,7 +201,7 @@ Exit:
     if(status != noErr)
     {
         FreeAudioSample(audioData);
-        
+        audioData = nullptr;
         audioDataPtr = nullptr;
         audioDataSize = 0;
         audioDataTotalNumDatums = 0;
