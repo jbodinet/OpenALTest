@@ -27,6 +27,7 @@ int main(int argc, const char * argv[])
     
     std::string sourceAudioFilePath = "/Users/josh/Desktop/04 Twisting By The Pool.m4a";
     // sourceAudioFilePath = "/Users/josh/Documents/Media/Video/Spherical/WindowsSample/SampleVideo.mp4";
+    sourceAudioFilePath = "/Users/josh/Desktop/IMG_5249.mov";
     uint32_t sourceAudioSampleRate = 48000;
     
     // optionally declare and set a DataOutputter
