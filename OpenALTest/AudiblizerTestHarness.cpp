@@ -518,7 +518,9 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
                 if(audioRunningSlowAccum > audioRunningSlowThreshold)
                 {
                     // ************************************************************************
-                    // QUESTION!!!
+                    // ************************************************************************
+                    // ************************************************************************
+                    // IMPORTANT QUESTION!!!
                     //
                     // Do we also want to check (and reset) the video clock in the event
                     // that the audio is found to be running FAST? If we only check and reset
@@ -526,6 +528,8 @@ void AudiblizerTestHarness::PumpVideoFrame(PumpVideoFrameSender sender, int32_t 
                     // resets the video timer using a slightly slower speed, has no counter-acting
                     // force that will speed up the video timer given audio that starts out running
                     // slow, but then picks up speed during playback
+                    // ************************************************************************
+                    // ************************************************************************
                     // ************************************************************************
                     
                     // we alter the audio playrate factor to represent what is going on with audio
@@ -849,7 +853,10 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
         memset(outputDataCString, 0, outputDataCStringSize);
         sprintf(outputDataCString, "Adversarial AudioPlayrateFactor:%f\n", audiblizerTestHarness->adversarialTestingAudioPlayrateFactor);
         outputDataString += outputDataCString;
-        
+    }
+    
+    if(audiblizerTestHarness->audioPlayrateFactor != 1.0)
+    {
         memset(outputDataCString, 0, outputDataCStringSize);
         sprintf(outputDataCString, "Actual AudioPlayrateFactor:%f\n", audiblizerTestHarness->audioPlayrateFactor);
         outputDataString += outputDataCString;
