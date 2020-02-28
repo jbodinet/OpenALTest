@@ -82,7 +82,12 @@
         videoParameters.numVideoFrames = 60 * 30;
         videoSegments.push_back(videoParameters);
         
-        audiblizer->StartTest(videoSegments);
+        // potentially adversarial testing params
+        double audioPlayrateFactor = 1.0;
+        uint32_t audioChunkCacheSize = 1;
+        uint32_t numPressureThreads = 0;
+        
+        audiblizer->StartTest(videoSegments, audioPlayrateFactor, audioChunkCacheSize, numPressureThreads);
     }
 }
 
