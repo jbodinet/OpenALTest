@@ -326,12 +326,6 @@ bool AudiblizerTestHarness::StopTest()
 {
     std::lock_guard<std::mutex> lock(mutex);
     
-    size_t numAdversarialPressureThreads = 0;
-    
-    std::string outputDataString;
-    const uint32_t outputDataCStringSize = 512;
-    char outputDataCString [outputDataCStringSize];
-    
     if(!initialized)
     {
         return false;
@@ -364,103 +358,12 @@ bool AudiblizerTestHarness::StopTest()
     // -------------------------------------
     if(!adversarialPressureThreads.empty())
     {
-        numAdversarialPressureThreads = adversarialPressureThreads.size();
-        
         for(uint32_t i = 0; i < adversarialPressureThreads.size(); i++)
         {
             adversarialPressureThreads[i]->Kill();
         }
         
         adversarialPressureThreads.clear();
-    }
-    
-    // Report findings
-    // -------------------------------------
-    outputDataString += "*** TestStopped ***\n";
-    
-    if(adversarialTestingAudioPlayrateFactor != 1.0)
-    {
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "Adversarial AudioPlayrateFactor:%f\n", adversarialTestingAudioPlayrateFactor);
-        outputDataString += outputDataCString;
-        
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "Actual AudioPlayrateFactor:%f\n", audioPlayrateFactor);
-        outputDataString += outputDataCString;
-    }
-    
-    if(adversarialTestingAudioChunkCacheSize != 1)
-    {
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "Adversarial AudioChunkCacheSize:%d\n", adversarialTestingAudioChunkCacheSize);
-        outputDataString += outputDataCString;
-    }
-    
-    if(numAdversarialPressureThreads != 0)
-    {
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "Adversarial PressureThreads count:%zu\n", numAdversarialPressureThreads);
-        outputDataString += outputDataCString;
-    }
-    
-    if(videoSegmentOutputDataIter == 0)
-    {
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "VideoTimerPeriod:%f\n", videoSegmentOutputData[0].timerPeriod);
-        outputDataString += outputDataCString;
-        
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", videoSegmentOutputData[0].cumulativeDelta.count() / (double)videoSegmentOutputData[0].numPumpsCompleted, videoSegmentOutputData[0].maxDelta.count(), videoSegmentOutputData[0].maxDeltaVideoFrameIter, videoSegmentOutputData[0].minDelta.count(), videoSegmentOutputData[0].minDeltaVideoFrameIter);
-        outputDataString += outputDataCString;
-    }
-    else
-    {
-        for(uint32_t i = 0; i <= videoSegmentOutputDataIter; i++)
-        {
-            memset(outputDataCString, 0, outputDataCStringSize);
-            sprintf(outputDataCString, "VideoSegment:%d  VideoTimerPeriod:%f\n", i, videoSegmentOutputData[i].timerPeriod);
-            outputDataString += outputDataCString;
-            
-            memset(outputDataCString, 0, outputDataCStringSize);
-            sprintf(outputDataCString, "VideoSegment:%d  Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", i, videoSegmentOutputData[i].cumulativeDelta.count() / (double)videoSegmentOutputData[i].numPumpsCompleted, videoSegmentOutputData[i].maxDelta.count(), videoSegmentOutputData[i].maxDeltaVideoFrameIter, videoSegmentOutputData[i].minDelta.count(), videoSegmentOutputData[i].minDeltaVideoFrameIter);
-            outputDataString += outputDataCString;
-        }
-    }
-        
-    if(videoFrameHiccup)
-    {
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "*** VIDEO FRAME HICCUPS OCCURRED!!! MAX HICCUP: %d VIDEO FRAMES ***", maxVideoFrameHiccup);
-        outputDataString += outputDataCString;
-    }
-    else
-    {
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "No video frame hiccups occurred\n");
-        outputDataString += outputDataCString;
-    }
-    
-    if(avDrift)
-    {
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "*** AUDIO/VIDEO DRIFT OCCURRED!!! MAX DRIFT: %d VIDEO FRAMES - NUM FRAMES WITH DRIFT: %d - %% FRAMES WITH DRIFT: %f%% ***\n", maxAVDrift, avDriftNumFrames, (avDriftNumFrames / (double) videoSegmentsTotalNumFrames) * 100.0);
-        outputDataString += outputDataCString;
-    }
-    else
-    {
-        memset(outputDataCString, 0, outputDataCStringSize);
-        sprintf(outputDataCString, "No audio/video drift occurred\n");
-        outputDataString += outputDataCString;
-    }
-    
-    std::lock_guard<std::mutex> dataOutputterLock(dataOutputterMutex);
-    if(dataOutputter != nullptr)
-    {
-        dataOutputter->OutputData(outputDataString.c_str());
-    }
-    else
-    {
-        printf("%s", outputDataString.c_str());
     }
     
     return true;
@@ -765,6 +668,10 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
     uint32_t videoSegmentFrameIter = 0;
     double   remainder = 0;
     
+    std::string outputDataString;
+    const uint32_t outputDataCStringSize = 512;
+    char outputDataCString [outputDataCStringSize];
+    
     while(true)
     {
         if(!audiblizerTestHarness->audioQueueingThreadRunning)
@@ -895,12 +802,103 @@ void AudiblizerTestHarness::AudioQueueingThreadProc(AudiblizerTestHarness *audib
     }
     
     // spin wait for audiblizer buffers to drain
+    // ------------------------------------------------------------
     while(audiblizerTestHarness->audiblizer->NumBuffersQueued() > 0)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
     
+    // as audiblizer drives the heart beat, we can output end-of-test data here
+    // -------------------------------------
+    outputDataString += "*** TestStopped ***\n";
+    
+    if(audiblizerTestHarness->adversarialTestingAudioPlayrateFactor != 1.0)
+    {
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Adversarial AudioPlayrateFactor:%f\n", audiblizerTestHarness->adversarialTestingAudioPlayrateFactor);
+        outputDataString += outputDataCString;
+        
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Actual AudioPlayrateFactor:%f\n", audiblizerTestHarness->audioPlayrateFactor);
+        outputDataString += outputDataCString;
+    }
+    
+    if(audiblizerTestHarness->adversarialTestingAudioChunkCacheSize != 1)
+    {
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Adversarial AudioChunkCacheSize:%d\n", audiblizerTestHarness->adversarialTestingAudioChunkCacheSize);
+        outputDataString += outputDataCString;
+    }
+    
+    if(audiblizerTestHarness->adversarialPressureThreads.size() != 0)
+    {
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Adversarial PressureThreads count:%zu\n", audiblizerTestHarness->adversarialPressureThreads.size());
+        outputDataString += outputDataCString;
+    }
+    
+    if(audiblizerTestHarness->videoSegmentOutputDataIter == 0)
+    {
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "VideoTimerPeriod:%f\n", audiblizerTestHarness->videoSegmentOutputData[0].timerPeriod);
+        outputDataString += outputDataCString;
+        
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", audiblizerTestHarness->videoSegmentOutputData[0].cumulativeDelta.count() / (double)audiblizerTestHarness->videoSegmentOutputData[0].numPumpsCompleted, audiblizerTestHarness->videoSegmentOutputData[0].maxDelta.count(), audiblizerTestHarness->videoSegmentOutputData[0].maxDeltaVideoFrameIter, audiblizerTestHarness->videoSegmentOutputData[0].minDelta.count(), audiblizerTestHarness->videoSegmentOutputData[0].minDeltaVideoFrameIter);
+        outputDataString += outputDataCString;
+    }
+    else
+    {
+        for(uint32_t i = 0; i <= audiblizerTestHarness->videoSegmentOutputDataIter; i++)
+        {
+            memset(outputDataCString, 0, outputDataCStringSize);
+            sprintf(outputDataCString, "VideoSegment:%d  VideoTimerPeriod:%f\n", i, audiblizerTestHarness->videoSegmentOutputData[i].timerPeriod);
+            outputDataString += outputDataCString;
+            
+            memset(outputDataCString, 0, outputDataCStringSize);
+            sprintf(outputDataCString, "VideoSegment:%d  Average Delta sec:%f - Max Delta sec:%f VFI:%06llu - Min Delta sec:%f VFI:%06llu\n", i, audiblizerTestHarness->videoSegmentOutputData[i].cumulativeDelta.count() / (double)audiblizerTestHarness->videoSegmentOutputData[i].numPumpsCompleted, audiblizerTestHarness->videoSegmentOutputData[i].maxDelta.count(), audiblizerTestHarness->videoSegmentOutputData[i].maxDeltaVideoFrameIter, audiblizerTestHarness->videoSegmentOutputData[i].minDelta.count(), audiblizerTestHarness->videoSegmentOutputData[i].minDeltaVideoFrameIter);
+            outputDataString += outputDataCString;
+        }
+    }
+    
+    if(audiblizerTestHarness->videoFrameHiccup)
+    {
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "*** VIDEO FRAME HICCUPS OCCURRED!!! MAX HICCUP: %d VIDEO FRAMES ***", audiblizerTestHarness->maxVideoFrameHiccup);
+        outputDataString += outputDataCString;
+    }
+    else
+    {
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "No video frame hiccups occurred\n");
+        outputDataString += outputDataCString;
+    }
+    
+    if(audiblizerTestHarness->avDrift)
+    {
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "*** AUDIO/VIDEO DRIFT OCCURRED!!! MAX DRIFT: %d VIDEO FRAMES - NUM FRAMES WITH DRIFT: %d - %% FRAMES WITH DRIFT: %f%% ***\n", audiblizerTestHarness->maxAVDrift, audiblizerTestHarness->avDriftNumFrames, (audiblizerTestHarness->avDriftNumFrames / (double) audiblizerTestHarness->videoSegmentsTotalNumFrames) * 100.0);
+        outputDataString += outputDataCString;
+    }
+    else
+    {
+        memset(outputDataCString, 0, outputDataCStringSize);
+        sprintf(outputDataCString, "No audio/video drift occurred\n");
+        outputDataString += outputDataCString;
+    }
+    
+    std::lock_guard<std::mutex> dataOutputterLock(audiblizerTestHarness->dataOutputterMutex);
+    if(audiblizerTestHarness->dataOutputter != nullptr)
+    {
+        audiblizerTestHarness->dataOutputter->OutputData(outputDataString.c_str());
+    }
+    else
+    {
+        printf("%s", outputDataString.c_str());
+    }
+    
     // tell topside that thread completed
+    // ------------------------------------------------------------
     audiblizerTestHarness->audioQueueingThreadTerminated.Signal();
 }
 
