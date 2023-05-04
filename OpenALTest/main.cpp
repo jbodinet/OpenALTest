@@ -1,10 +1,26 @@
+// ****************************************************************************
+// MIT License
 //
-//  main.cpp
-//  OpenALTest
+// Copyright (c) 2019 Joshua E Bodinet
 //
-//  Created by Joshua Bodinet on 2/3/20.
-//  Copyright © 2020 JoshuaBodinet. All rights reserved.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 //
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ****************************************************************************
 
 #include <iostream>
 #include <memory>
@@ -26,8 +42,8 @@ int main(int argc, const char * argv[])
     bool multiframerate = true;
     
     std::string sourceAudioFilePath = "/Users/josh/Desktop/04 Twisting By The Pool.m4a";
-    // sourceAudioFilePath = "/Users/josh/Documents/Media/Video/Spherical/WindowsSample/SampleVideo.mp4";
-    sourceAudioFilePath = "/Users/josh/Desktop/IMG_5249.mov";
+    sourceAudioFilePath = "/Users/josh/Documents/Media/Video/Spherical/WindowsSample/SampleVideo.mp4";
+    //sourceAudioFilePath = "/Users/josh/Desktop/GoProHero3LaunchVideo.mp4";
     uint32_t sourceAudioSampleRate = 48000;
     
     // optionally declare and set a DataOutputter
