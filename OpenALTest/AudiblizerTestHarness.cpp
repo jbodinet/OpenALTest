@@ -423,6 +423,13 @@ void AudiblizerTestHarness::AudioChunkCompleted(const AudioChunkCompletedVector 
     
     adversarialTestingAudioChunkCacheAccum += (int32_t)audioChunksCompleted.size();
     
+    // NOTE: adversarialTestingAudioChunkCacheSize is used so that we are able to test
+    //       the case where the client implementation of OpenAL is only able to return to
+    //       us, say, 2, 3, or 4, chunks of audio at a time. In an actual implementation
+    //       we would always call PumpVideoFrame() every time this AudioChunkCompleted() is
+    //       called, and we would pumping the video frame iter a total number of times
+    //       equal to the number of chunks of audio that are contained with 'audioChunksCompleted',
+    //       which is the number of chunks of audio that were just dequeue via OpenAL
     if(adversarialTestingAudioChunkCacheAccum >= adversarialTestingAudioChunkCacheSize)
     {
         PumpVideoFrame(PumpVideoFrameSender_AudioUnqueuer, adversarialTestingAudioChunkCacheAccum);
