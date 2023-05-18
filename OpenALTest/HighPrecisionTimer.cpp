@@ -64,6 +64,7 @@ bool HighPrecisionTimer::Start()
     
     // set the timer thread to use a FIFO policy with top priority
     // ----------------------------------------------------------------------------------
+#if defined(__APPLE__)
     sched_param sch_params;
     int policy = SCHED_FIFO;
     sch_params.sched_priority = sched_get_priority_max(policy);
@@ -73,6 +74,14 @@ bool HighPrecisionTimer::Start()
         printf("Failed to set Thread scheduling!!! Error:%s\n", std::strerror(errno));
         
     }
+#elif defined(_WIN32)
+    int threadPriority = THREAD_PRIORITY_HIGHEST;
+    threadPriority = THREAD_PRIORITY_TIME_CRITICAL;
+    if(!SetThreadPriority(timerThread->native_handle(), threadPriority))
+    {
+        printf("Failed to set Thread priority!!!\n");
+    }
+#endif
     
     return true;
 }
@@ -168,8 +177,12 @@ void HighPrecisionTimer::TimerThreadProc(HighPrecisionTimer *highPrecisionTimer)
         }
         highPrecisionTimer->delegateSetMutex.unlock();
         
+        // Apple can handle this thread getting kicked out of the processor.
+        // Windows CANNOT handle this thread getting kicked out of the processor even when the threadPriority is HIGHEST or TIME_CRITICAL!!!
+#if defined(__APPLE__)
         //std::this_thread::sleep_for(std::chrono::milliseconds(1));
         std::this_thread::sleep_for(std::chrono::microseconds(250));
+#endif
     }
 }
                                                          
